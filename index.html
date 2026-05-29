@@ -1,270 +1,933 @@
 <!DOCTYPE html>
 <html lang="bn">
+
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
-  <title>ধানবন্ধু 🌾 | AI রোগ শনাক্তকরণ</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap');
-    * { font-family: 'Hind Siliguri', 'Noto Sans Bengali', sans-serif; }
-    .bg-paddy {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      z-index: -2;
-    }
-    .overlay-grad {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(135deg, rgba(20, 38, 18, 0.6), rgba(45, 70, 35, 0.5));
-      backdrop-filter: blur(3px);
-      z-index: -1;
-    }
-    .glass-card {
-      background: rgba(255, 252, 240, 0.92);
-      backdrop-filter: blur(12px);
-      border: 1px solid rgba(200, 160, 70, 0.4);
-      border-radius: 2rem;
-      box-shadow: 0 20px 35px -12px rgba(0,0,0,0.2);
-    }
-    .upload-zone {
-      transition: all 0.2s ease;
-      border: 2px dashed #8ba86b;
-    }
-    .upload-zone:hover {
-      background: rgba(200, 180, 100, 0.2);
-      border-color: #cb9e2c;
-    }
-    .btn-farmer {
-      transition: all 0.1s linear;
-      box-shadow: 0 5px 0 #2b5e2b;
-    }
-    .btn-farmer:active {
-      transform: translateY(2px);
-      box-shadow: 0 2px 0 #2b5e2b;
-    }
-    @keyframes sway {
-      0%,100% { transform: rotate(0deg); }
-      50% { transform: rotate(2deg); }
-    }
-    .sway { animation: sway 3s infinite ease-in-out; display: inline-block; }
-    .prob-bar {
-      transition: width 0.6s cubic-bezier(0.2, 0.9, 0.4, 1.1);
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>কৃষক বন্ধু — ধানের রোগ নির্ণয় ও আবহাওয়া পূর্বাভাস</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&family=Noto+Serif+Bengali:wght@400;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0d1f0e">
 </head>
-<body class="text-gray-800">
-  <video class="bg-paddy" autoplay loop muted playsinline>
-    <source src="https://player.vimeo.com/external/550334535.hd.mp4?s=c6a4b884a4e1f6bf3a0866187f50fcab5a55a84c&profile_id=174" type="video/mp4">
-  </video>
-  <div class="overlay-grad"></div>
 
-  <div class="relative z-10 min-h-screen flex flex-col">
-    <!-- Header -->
-    <header class="sticky top-0 z-20 bg-green-900/80 backdrop-blur-md shadow-md">
-      <div class="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
-        <div class="flex items-center gap-2 text-2xl font-bold text-white"><span class="sway">🌾</span> ধানবন্ধু</div>
-        <div class="flex gap-2">
-          <button data-tab="home" class="tab-btn px-3 py-1.5 rounded-full text-sm font-medium bg-amber-500 text-green-900">বাড়ি</button>
-          <button data-tab="detect" class="tab-btn px-3 py-1.5 rounded-full text-sm font-medium text-white/90 hover:bg-green-700">রোগ শনাক্ত</button>
-          <button data-tab="forecast" class="tab-btn px-3 py-1.5 rounded-full text-sm font-medium text-white/90 hover:bg-green-700">পূর্বাভাস</button>
-        </div>
-      </div>
-    </header>
+<body>
 
-    <main class="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
-      <!-- Home Tab -->
-      <div id="homeTab" class="tab-content">
-        <div class="glass-card p-6 md:p-10 text-center">
-          <div class="text-7xl mb-3 sway">🌾🌿</div>
-          <h1 class="text-4xl md:text-5xl font-bold text-green-900">ধানের রোগ শনাক্ত করুন <span class="text-amber-700">সহজেই</span></h1>
-          <p class="text-xl text-gray-700 mt-3 max-w-2xl mx-auto">AI প্রযুক্তিতে ধানের রোগ নির্ণয় ও আগাম সতর্কতা — মাত্র কয়েক সেকেন্ডে ফলাফল</p>
-          <div class="flex flex-wrap gap-4 justify-center mt-8">
-            <button data-tab="detect" class="bg-green-700 hover:bg-green-800 text-white px-8 py-3 rounded-full text-lg font-bold shadow-lg flex items-center gap-2 btn-farmer">📸 ছবি আপলোড করুন</button>
-            <button data-tab="forecast" class="bg-amber-600 hover:bg-amber-700 text-white px-8 py-3 rounded-full text-lg font-bold flex items-center gap-2">☁️ রোগ পূর্বাভাস দেখুন</button>
-          </div>
+    <!-- NAVBAR -->
+    <nav id="navbar">
+        <div class="nav-inner">
+            <a href="#home" class="nav-brand">
+                <div class="brand-mark"></div>
+                <div class="brand-text">
+                    <span class="brand-bn">কৃষক বন্ধু</span>
+                    <span class="brand-en">KRISHOK BONDHU</span>
+                </div>
+            </a>
+            <ul class="nav-links" id="navLinks">
+                <li><a href="#detect" class="nav-link">রোগ নির্ণয়</a></li>
+                <li><a href="#weather-forecast" class="nav-link">আবহাওয়া</a></li>
+                <li><a href="#crop-calendar" class="nav-link">ফসল পঞ্জিকা</a></li>
+                <li><a href="#fertilizer-calc" class="nav-link">সার ক্যালকুলেটর</a></li>
+                <li><a href="#market" class="nav-link">বাজারদর</a></li>
+                <li><a href="#chatbot" class="nav-link">AI পরামর্শ</a></li>
+                <li><a href="#detect" class="nav-cta-link">শুরু করুন</a></li>
+                <li id="navAuthItem"><a href="#" class="nav-cta-link" id="navSignInBtn" style="background:transparent;border:1.5px solid rgba(255,255,255,0.3);">সাইন ইন</a></li>
+                <li id="navUserItem" style="display:none;"></li>
+            </ul>
+            <button class="nav-hamburger" id="navToggle" aria-label="মেনু">
+                <span></span><span></span><span></span>
+            </button>
         </div>
-        <div class="grid md:grid-cols-3 gap-6 mt-10">
-          <div class="glass-card p-5 text-center"><div class="text-3xl mb-2">🌱</div><h3 class="text-xl font-bold">রোগ শনাক্তকরণ</h3><p class="text-gray-600">তিনটি AI মডেলের সম্মিলিত বুদ্ধিমত্তা</p></div>
-          <div class="glass-card p-5 text-center"><div class="text-3xl mb-2">📊</div><h3 class="text-xl font-bold">আগাম পূর্বাভাস</h3><p class="text-gray-600">আবহাওয়া বিশ্লেষণ করে ঝুঁকি নির্ণয়</p></div>
-          <div class="glass-card p-5 text-center"><div class="text-3xl mb-2">🌿</div><h3 class="text-xl font-bold">কৃষি পরামর্শ</h3><p class="text-gray-600">জৈব ও রাসায়নিক সমাধান, সতর্কতা বার্তা</p></div>
-        </div>
-      </div>
+    </nav>
 
-      <!-- Detect Tab -->
-      <div id="detectTab" class="tab-content hidden">
-        <div class="glass-card p-6">
-          <h2 class="text-2xl font-bold text-green-800 flex gap-2 items-center"><span>🔍</span> রোগ শনাক্তকরণ কেন্দ্র</h2>
-          <div id="uploadArea" class="upload-zone rounded-2xl p-8 text-center bg-white/50 cursor-pointer mt-4">
-            <div class="text-5xl mb-2">📤</div>
-            <p class="text-xl font-semibold">ধান পাতার ছবি আপলোড করুন</p>
-            <p class="text-gray-500 mt-1">JPG বা PNG, পরিষ্কার আলোয় তোলা ছবি ভালো ফলাফল দেয়</p>
-            <input type="file" id="imageInput" accept="image/jpeg,image/png" class="hidden">
-            <div class="mt-3 text-sm text-green-700">📷 মোবাইল ক্যামেরা থেকে ছবি তুলতে পারেন</div>
-          </div>
-          <div id="previewContainer" class="hidden mt-6">
-            <div class="grid md:grid-cols-2 gap-6">
-              <div><img id="previewImg" class="rounded-2xl shadow-lg border-4 border-amber-300 w-full object-cover" alt="preview"></div>
-              <div id="resultContainer" class="space-y-4"></div>
+    <!-- HERO -->
+    <section class="hero" id="home">
+        <div class="hero-video-wrap">
+            <video class="hero-video" id="heroVideo" autoplay muted loop playsinline>
+                <source src="https://www.pexels.com/download/video/34182477/" type="video/mp4">
+                <source src="https://www.pexels.com/download/video/10783183/" type="video/mp4">
+            </video>
+            <div class="hero-overlay"></div>
+        </div>
+        <div class="hero-content">
+            <div class="hero-tag">কৃত্রিম বুদ্ধিমত্তা চালিত কৃষি সহায়তা</div>
+            <h1 class="hero-title">
+                <span class="hero-title-main">কৃষক বন্ধু</span>
+                <span class="hero-title-sub">ধানের রোগ নির্ণয়, আবহাওয়া ও সম্পূর্ণ কৃষি ব্যবস্থাপনা</span>
+            </h1>
+            <p class="hero-desc">
+                ধানের পাতার ছবি আপলোড করুন — আমাদের এনসেম্বল AI মডেল তাৎক্ষণিকভাবে রোগ শনাক্ত করবে। সাথে পাবেন সার
+                ক্যালকুলেটর, ফসল পঞ্জিকা, বাজারদর এবং বাংলায় AI পরামর্শ।
+            </p>
+            <div class="hero-actions">
+                <a href="#detect" class="btn btn-primary">রোগ নির্ণয় করুন</a>
+                <a href="#chatbot" class="btn btn-ghost">AI পরামর্শ নিন</a>
             </div>
-            <div class="flex gap-3 mt-4">
-              <button id="resetBtn" class="bg-gray-600 hover:bg-gray-700 text-white px-5 py-2 rounded-full">নতুন ছবি</button>
-              <button id="analyzeBtn" class="bg-green-700 hover:bg-green-800 text-white px-6 py-2 rounded-full font-bold flex items-center gap-2">✨ রোগ বিশ্লেষণ শুরু করুন</button>
+            <div class="hero-metrics">
+                <div class="metric"><span class="metric-val">৯৭%</span><span class="metric-lbl">নির্ভুলতা</span></div>
+                <div class="metric-divider"></div>
+                <div class="metric"><span class="metric-val">১৫ দিন</span><span class="metric-lbl">আবহাওয়া
+                        পূর্বাভাস</span></div>
+                <div class="metric-divider"></div>
+                <div class="metric"><span class="metric-val">৬টি</span><span class="metric-lbl">বৈশিষ্ট্য</span></div>
             </div>
-          </div>
-          <div id="loadingSpinner" class="hidden text-center py-8"><div class="inline-block w-10 h-10 border-4 border-green-600 border-t-transparent rounded-full animate-spin"></div><p class="mt-2">AI বিশ্লেষণ করছে...</p></div>
         </div>
-        <div class="mt-6 bg-amber-50/70 backdrop-blur-sm rounded-xl p-4 text-sm text-green-800 flex flex-wrap gap-3 justify-between"><span>💡 কৃষি টিপস: </span><span>🌾 বৃষ্টির আগে ছত্রাকনাশক প্রয়োগ | 💧 জমিতে পানি নিষ্কাশন | 🌱 সুস্থ চারা রোপণ</span></div>
-      </div>
+        <div class="hero-scroll">
+            <div class="scroll-line"></div>
+            <span>নিচে স্ক্রল করুন</span>
+        </div>
+    </section>
 
-      <!-- Forecast Tab (Mock + dynamic) -->
-      <div id="forecastTab" class="tab-content hidden">
-        <div class="glass-card p-6">
-          <h2 class="text-2xl font-bold flex gap-2 items-center"><span>🌦️</span> আবহাওয়া ও রোগ পূর্বাভাস</h2>
-          <div id="forecastData" class="grid md:grid-cols-2 gap-6 mt-6"></div>
+    <!-- FEATURE STRIP -->
+    <div class="feature-strip">
+        <div class="feature-strip-inner">
+            <div class="feature-item">
+                <div class="fi-icon">AI</div>
+                <div>
+                    <div class="fi-title">এনসেম্বল মডেল</div>
+                    <div class="fi-sub">৩টি উন্নত নেটওয়ার্ক</div>
+                </div>
+            </div>
+            <div class="feature-sep"></div>
+            <div class="feature-item">
+                <div class="fi-icon">GEO</div>
+                <div>
+                    <div class="fi-title">স্যাটেলাইট ম্যাপ</div>
+                    <div class="fi-sub">রিয়েল-টাইম অবস্থান</div>
+                </div>
+            </div>
+            <div class="feature-sep"></div>
+            <div class="feature-item">
+                <div class="fi-icon">সার</div>
+                <div>
+                    <div class="fi-title">সার ক্যালকুলেটর</div>
+                    <div class="fi-sub">NPK সুপারিশ</div>
+                </div>
+            </div>
+            <div class="feature-sep"></div>
+            <div class="feature-item">
+                <div class="fi-icon">বাজার</div>
+                <div>
+                    <div class="fi-title">বাজারদর ট্র্যাকার</div>
+                    <div class="fi-sub">লাভ-ক্ষতি হিসাব</div>
+                </div>
+            </div>
         </div>
-      </div>
-    </main>
-    <footer class="text-center text-white/80 text-xs py-5 border-t border-white/20 backdrop-blur-sm">
-      Ensemble AI (EfficientNetB0, ResNet50, DenseNet121) | ধান গবেষণা ও কৃষি প্রযুক্তি<br>
-      স্বাস্থ্যবান ধানক্ষেতের জন্য কৃত্রিম বুদ্ধিমত্তা — সম্পূর্ণ বিনামূল্যে
+    </div>
+
+    <!-- DETECT SECTION -->
+    <section id="detect" class="section-detect">
+        <div class="container">
+            <div class="section-head">
+                <div class="section-kicker">রোগ নির্ণয়</div>
+                <h2 class="section-title">ধানের পাতার রোগ শনাক্তকরণ</h2>
+                <p class="section-desc">একটি পরিষ্কার ধানের পাতার ছবি আপলোড করুন। আমাদের তিন মডেলের এনসেম্বল পদ্ধতি
+                    বিশ্লেষণ করে রোগের নাম, সম্ভাবনা, বর্ণনা এবং চিকিৎসা পদ্ধতি প্রদান করবে।</p>
+                <button type="button" class="listen-btn">শুনুন</button>
+            </div>
+            <div class="detect-grid">
+                <div class="upload-panel">
+                    <div class="upload-zone" id="uploadZone">
+                        <div class="upload-visual">
+                            <div class="upload-ring"></div>
+                            <div class="upload-leaf">
+                                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M32 8C18 8 8 22 8 36C8 50 18 56 32 56C46 56 56 46 56 32C56 14 44 8 32 8Z"
+                                        fill="currentColor" opacity="0.15" />
+                                    <path d="M32 8C18 8 8 22 8 36C8 50 18 56 32 56" stroke="currentColor"
+                                        stroke-width="2" stroke-linecap="round" />
+                                    <path d="M32 8C46 8 56 22 56 36" stroke="currentColor" stroke-width="2"
+                                        stroke-linecap="round" stroke-dasharray="4 3" />
+                                    <line x1="32" y1="8" x2="32" y2="56" stroke="currentColor" stroke-width="1.5"
+                                        stroke-dasharray="3 3" />
+                                </svg>
+                            </div>
+                        </div>
+                        <h3 class="upload-title">ছবি আপলোড করুন</h3>
+                        <p class="upload-hint">সরাসরি ক্যামেরা অথবা ফাইল বেছে নিয়ে ছবি তুলুন</p>
+                        <p class="upload-formats">সমর্থিত ফরম্যাট: JPG, PNG, JPEG</p>
+                        <button class="upload-btn" id="uploadBtn">ছবি তুলুন / বেছে নিন</button>
+                        <input type="file" id="fileInput" accept="image/*" capture="environment" style="display:none;">
+                    </div>
+                    <div class="preview-wrap" id="previewBox">
+                        <img id="previewImg" src="" alt="পূর্বদর্শন">
+                        <div class="preview-label" id="uploadStatus"></div>
+                    </div>
+                    <div class="models-info">
+                        <div class="mi-title">ব্যবহৃত মডেলসমূহ</div>
+                        <div class="mi-list">
+                            <div class="mi-item"><span class="mi-name">EfficientNetB0</span>
+                                <div class="mi-bar-wrap">
+                                    <div class="mi-bar" style="width:60%"></div>
+                                </div><span class="mi-weight">৬০%</span>
+                            </div>
+                            <div class="mi-item"><span class="mi-name">ResNet50</span>
+                                <div class="mi-bar-wrap">
+                                    <div class="mi-bar" style="width:25%"></div>
+                                </div><span class="mi-weight">২৫%</span>
+                            </div>
+                            <div class="mi-item"><span class="mi-name">DenseNet121</span>
+                                <div class="mi-bar-wrap">
+                                    <div class="mi-bar" style="width:15%"></div>
+                                </div><span class="mi-weight">১৫%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="result-panel" id="resultPanel">
+                    <div class="result-placeholder" id="resultEmpty">
+                        <div class="rp-graphic">
+                            <div class="rp-circle"></div>
+                            <div class="rp-inner"></div>
+                        </div>
+                        <div class="rp-title">বিশ্লেষণের অপেক্ষায়</div>
+                        <div class="rp-sub">ধানের পাতার ছবি আপলোড করুন</div>
+                    </div>
+                    <div class="result-loading" id="loadingOverlay">
+                        <div class="loader-ring">
+                            <div></div>
+                            <div></div>
+                            <div></div>
+                            <div></div>
+                        </div>
+                        <div class="loader-text">বিশ্লেষণ চলছে</div>
+                        <div class="loader-sub">তিনটি মডেল একযোগে কাজ করছে...</div>
+                    </div>
+                    <div class="result-data" id="resultContent">
+                        <div class="result-header" id="resultDiseaseCard">
+                            <div class="result-icon-wrap" id="resultIcon"></div>
+                            <div class="result-info">
+                                <div class="result-name" id="resultName"></div>
+                                <div class="result-name-bn" id="resultBn"></div>
+                                <div class="result-conf-row">
+                                    <span class="result-conf" id="resultConf"></span>
+                                    <span class="result-severity" id="resultSeverity"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="result-section">
+                            <div class="result-section-label">শ্রেণী সম্ভাবনা</div>
+                            <div id="resultProbs"></div>
+                        </div>
+                        <div class="result-section">
+                            <div class="result-section-label">বিবরণ ও চিকিৎসা</div>
+                            <div class="result-cards-row">
+                                <div class="result-card" id="resultDescCard">
+                                    <div class="rc-label">বিবরণ</div>
+                                    <div class="rc-body" id="resultDesc"></div>
+                                </div>
+                                <div class="result-card result-card-treat" id="resultTreatCard">
+                                    <div class="rc-label">প্রতিকার</div>
+                                    <div class="rc-body" id="resultTreat"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- IMAGE BAND -->
+    <div class="image-band">
+        <div class="ib-overlay"></div>
+        <div class="ib-images" id="ibImages">
+            <img src="https://images.pexels.com/photos/1118873/pexels-photo-1118873.jpeg?auto=compress&cs=tinysrgb&w=800"
+                alt="আবহাওয়া">
+            <img src="https://images.pexels.com/photos/1118869/pexels-photo-1118869.jpeg?auto=compress&cs=tinysrgb&w=800"
+                alt="আবহাওয়া">
+            <img src="https://images.pexels.com/photos/531756/pexels-photo-531756.jpeg?auto=compress&cs=tinysrgb&w=800"
+                alt="আবহাওয়া">
+            <img src="https://images.pexels.com/photos/1126384/pexels-photo-1126384.jpeg?auto=compress&cs=tinysrgb&w=800"
+                alt="আবহাওয়া">
+            <img src="https://images.pexels.com/photos/209831/pexels-photo-209831.jpeg?auto=compress&cs=tinysrgb&w=800"
+                alt="আবহাওয়া">
+        </div>
+        <div class="ib-text">
+            <div class="ib-kicker">উপগ্রহ ভিত্তিক তথ্য</div>
+            <div class="ib-headline">আপনার অঞ্চলের আবহাওয়া জানুন</div>
+        </div>
+    </div>
+
+    <!-- WEATHER SECTION -->
+    <section id="weather-forecast" class="section-weather">
+        <div class="container">
+            <div class="section-head">
+                <div class="section-kicker">আবহাওয়া পূর্বাভাস</div>
+                <h2 class="section-title">বাংলাদেশের ১৫ দিনের আবহাওয়া পূর্বাভাস</h2>
+                <p class="section-desc">আপনার বিভাগ, জেলা এবং উপজেলা নির্বাচন করুন। উপগ্রহ মানচিত্রসহ বিস্তারিত ১৫ দিনের
+                    আবহাওয়া পূর্বাভাস দেখুন।</p>
+                <button type="button" class="listen-btn">শুনুন</button>
+            </div>
+            <div class="weather-layout">
+                <div class="weather-left">
+                    <div class="loc-card">
+                        <div class="loc-card-head">
+                            <div class="loc-dot"></div><span>অবস্থান নির্বাচন করুন</span>
+                        </div>
+                        <div class="loc-fields">
+                            <div class="loc-field"><label class="loc-label">বিভাগ</label>
+                                <div class="select-wrap"><select id="divisionSelect" class="loc-select">
+                                        <option value="">-- বিভাগ নির্বাচন করুন --</option>
+                                    </select></div>
+                            </div>
+                            <div class="loc-field"><label class="loc-label">জেলা</label>
+                                <div class="select-wrap"><select id="districtSelect" class="loc-select" disabled>
+                                        <option value="">-- জেলা নির্বাচন করুন --</option>
+                                    </select></div>
+                            </div>
+                            <div class="loc-field"><label class="loc-label">উপজেলা</label>
+                                <div class="select-wrap"><select id="subdistrictSelect" class="loc-select" disabled>
+                                        <option value="">-- উপজেলা নির্বাচন করুন --</option>
+                                    </select></div>
+                            </div>
+                        </div>
+                        <div class="loc-selected" id="selectedLocationInfo"><span>বিভাগ থেকে শুরু করুন এবং ধাপে ধাপে
+                                নির্বাচন করুন</span></div>
+                        <button id="fetchWeatherBtn" class="btn btn-primary btn-full" disabled>১৫ দিনের পূর্বাভাস
+                            দেখুন</button>
+                    </div>
+                    <div class="weather-cards-wrap" id="weatherCardsContainer">
+                        <div class="weather-placeholder" id="weatherPlaceholder">
+                            <div class="wp-graphic">
+                                <div class="wp-orbit"></div>
+                                <div class="wp-core"></div>
+                            </div>
+                            <div class="wp-title">আবহাওয়া তথ্য</div>
+                            <p class="wp-sub">উপজেলা নির্বাচন করুন এবং "১৫ দিনের পূর্বাভাস দেখুন" বাটনে ক্লিক করুন</p>
+                        </div>
+                        <div class="weather-loading" id="weatherLoading">
+                            <div class="loader-ring">
+                                <div></div>
+                                <div></div>
+                                <div></div>
+                                <div></div>
+                            </div>
+                            <div class="loader-text">আবহাওয়া তথ্য সংগ্রহ করা হচ্ছে</div>
+                        </div>
+                        <div class="weather-error" id="weatherError">
+                            <div class="we-icon">!</div>
+                            <div>
+                                <div class="we-title">তথ্য সংগ্রহে সমস্যা হয়েছে</div>
+                                <div class="we-msg" id="weatherErrorMsg"></div>
+                            </div>
+                        </div>
+                        <div class="weather-cards-grid" id="weatherCardsGrid"></div>
+                    </div>
+                </div>
+                <div class="weather-right">
+                    <div class="map-card">
+                        <div class="map-card-head"><span>উপগ্রহ মানচিত্র</span><span class="map-src">Esri World
+                                Imagery</span></div>
+                        <div id="weatherMap" class="map-viewport"></div>
+                        <div class="map-footer" id="mapCoords">স্থানাঙ্ক: —</div>
+                    </div>
+                    <div class="summary-card" id="weatherSummaryCard">
+                        <div class="sc-head">অবস্থান সারসংক্ষেপ</div>
+                        <div class="sc-body" id="weatherSummaryContent"><em>অবস্থান নির্বাচন করলে সারসংক্ষেপ দেখা
+                                যাবে</em></div>
+                        <div class="weather-meta" id="weatherLastUpdated"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════
+         NEW: CROP CALENDAR SECTION
+    ═══════════════════════════════════════════ -->
+    <section id="crop-calendar" class="section-crop-calendar">
+        <div class="container">
+            <div class="section-head">
+                <div class="section-kicker">ফসল পঞ্জিকা</div>
+                <h2 class="section-title">গাছের বয়স ভিত্তিক পরামর্শ ও ফসল ক্যালেন্ডার</h2>
+                <p class="section-desc">বপনের তারিখ এবং মৌসুম নির্বাচন করুন। সিস্টেম স্বয়ংক্রিয়ভাবে বলবে — এই সময়ে কী
+                    করণীয়।</p>
+                <button type="button" class="listen-btn">শুনুন</button>
+            </div>
+            <div class="calendar-layout">
+                <div class="calendar-controls">
+                    <div class="cal-card">
+                        <div class="cal-card-head">ফসল তথ্য দিন</div>
+                        <div class="cal-fields">
+                            <div class="cal-field">
+                                <label class="cal-label">মৌসুম নির্বাচন</label>
+                                <div class="season-tabs">
+                                    <button class="season-tab active" data-season="boro">বোরো</button>
+                                    <button class="season-tab" data-season="amon">আমন</button>
+                                    <button class="season-tab" data-season="aus">আউশ</button>
+                                </div>
+                            </div>
+                            <div class="cal-field">
+                                <label class="cal-label">বপনের তারিখ</label>
+                                <input type="date" id="sowingDate" class="cal-input">
+                            </div>
+                            <div class="cal-field">
+                                <label class="cal-label">ধানের জাত</label>
+                                <div class="select-wrap">
+                                    <select id="riceVariety" class="loc-select">
+                                        <option value="br28">BR-28 (বোরো)</option>
+                                        <option value="br29">BR-29 (বোরো)</option>
+                                        <option value="brri47">BRRI ধান-৪৭ (আমন)</option>
+                                        <option value="brri49">BRRI ধান-৪৯ (আমন)</option>
+                                        <option value="br26">BR-26 (আউশ)</option>
+                                        <option value="hybrid">হাইব্রিড</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button id="generateCalendarBtn" class="btn btn-primary btn-full">পঞ্জিকা তৈরি করুন</button>
+                        </div>
+                    </div>
+                    <!-- Stage Info Card -->
+                    <div class="stage-info-card" id="stageInfoCard">
+                        <div class="sic-head">বর্তমান অবস্থা</div>
+                        <div class="sic-body" id="stageInfoBody">
+                            <em>তারিখ দিয়ে পঞ্জিকা তৈরি করুন</em>
+                        </div>
+                    </div>
+                </div>
+                <div class="calendar-timeline" id="calendarTimeline">
+                    <div class="timeline-placeholder">
+                        <div class="tp-icon">📅</div>
+                        <div class="tp-title">পঞ্জিকা দেখতে বপনের তারিখ দিন</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════
+         NEW: FERTILIZER & IRRIGATION CALCULATOR
+    ═══════════════════════════════════════════ -->
+    <section id="fertilizer-calc" class="section-fertilizer">
+        <div class="container">
+            <div class="section-head">
+                <div class="section-kicker">সার ও সেচ ব্যবস্থাপনা</div>
+                <h2 class="section-title">স্মার্ট সার ও সেচ ক্যালকুলেটর</h2>
+                <p class="section-desc">জমির পরিমাণ, মাটির ধরন ও ধানের জাত ইনপুট দিলে ইউরিয়া, ডিএপি, এমওপি এবং সেচের
+                    পরিমাণ হিসাব করে দেবে।</p>
+                <button type="button" class="listen-btn">শুনুন</button>
+            </div>
+            <div class="fertilizer-layout">
+                <!-- Input Panel -->
+                <div class="fert-input-panel">
+                    <div class="fert-card">
+                        <div class="fert-card-head">জমির তথ্য</div>
+                        <div class="fert-fields">
+                            <div class="fert-field-row">
+                                <div class="fert-field">
+                                    <label class="fert-label">জমির পরিমাণ</label>
+                                    <div class="fert-input-group">
+                                        <input type="number" id="landAmount" class="fert-input" placeholder="০"
+                                            min="0.01" step="0.01" value="1">
+                                        <div class="select-wrap fert-unit-select">
+                                            <select id="landUnit" class="loc-select">
+                                                <option value="shotangsh">শতাংশ</option>
+                                                <option value="bigha">বিঘা</option>
+                                                <option value="acre" selected>একর</option>
+                                                <option value="hectare">হেক্টর</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="fert-field">
+                                <label class="fert-label">মাটির ধরন</label>
+                                <div class="soil-type-grid">
+                                    <button class="soil-btn active" data-soil="clay">এঁটেল মাটি</button>
+                                    <button class="soil-btn" data-soil="loam">দোআঁশ মাটি</button>
+                                    <button class="soil-btn" data-soil="sandy">বেলে মাটি</button>
+                                    <button class="soil-btn" data-soil="silt">পলি মাটি</button>
+                                </div>
+                            </div>
+                            <div class="fert-field">
+                                <label class="fert-label">ধানের জাত</label>
+                                <div class="select-wrap">
+                                    <select id="fertRiceVariety" class="loc-select">
+                                        <option value="hv">উফশী জাত (HYV)</option>
+                                        <option value="hybrid">হাইব্রিড</option>
+                                        <option value="local">স্থানীয় জাত</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="fert-field">
+                                <label class="fert-label">মৌসুম</label>
+                                <div class="season-tabs">
+                                    <button class="season-tab active" data-fert-season="boro">বোরো</button>
+                                    <button class="season-tab" data-fert-season="amon">আমন</button>
+                                    <button class="season-tab" data-fert-season="aus">আউশ</button>
+                                </div>
+                            </div>
+                            <button id="calcFertBtn" class="btn btn-primary btn-full">হিসাব করুন</button>
+                        </div>
+                    </div>
+                </div>
+                <!-- Result Panel -->
+                <div class="fert-result-panel" id="fertResultPanel">
+                    <div class="fert-placeholder">
+                        <div class="fp-icon">🌱</div>
+                        <div class="fp-title">সার সুপারিশ দেখতে হিসাব করুন</div>
+                    </div>
+                    <div class="fert-results" id="fertResults" style="display:none;">
+                        <div class="fert-results-head" id="fertResultHead"></div>
+                        <!-- Fertilizer cards -->
+                        <div class="fert-dose-grid" id="fertDoseGrid"></div>
+                        <!-- NPK info -->
+                        <div class="npk-section">
+                            <div class="npk-head">সারের প্রয়োগ সময়সূচি</div>
+                            <div class="npk-table" id="npkTable"></div>
+                        </div>
+                        <!-- Irrigation -->
+                        <div class="irrig-section">
+                            <div class="irrig-head">💧 সেচ সুপারিশ</div>
+                            <div class="irrig-body" id="irrigBody"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════
+         NEW: MARKET PRICE TRACKER
+    ═══════════════════════════════════════════ -->
+    <section id="market" class="section-market">
+        <div class="container">
+            <div class="section-head">
+                <div class="section-kicker">বাজার ও অর্থনীতি</div>
+                <h2 class="section-title">ধানের বাজারদর ও লাভ-ক্ষতি হিসাব</h2>
+                <p class="section-desc">বিভিন্ন জেলার বাজারদর দেখুন এবং আপনার এই মৌসুমের আনুমানিক লাভ হিসাব করুন।</p>
+                <button type="button" class="listen-btn">শুনুন</button>
+            </div>
+            <div class="market-layout">
+                <!-- Price Tracker -->
+                <div class="market-left">
+                    <div class="price-card">
+                        <div class="price-card-head">
+                            <span>জেলাভিত্তিক বর্তমান বাজারদর (টাকা/মণ)</span>
+                            <span class="price-updated" id="priceUpdated">আজকের হার</span>
+                        </div>
+                        <div class="price-filter-row">
+                            <button class="price-filter-btn active" data-rice="fine">সরু চাল</button>
+                            <button class="price-filter-btn" data-rice="medium">মাঝারি চাল</button>
+                            <button class="price-filter-btn" data-rice="coarse">মোটা চাল</button>
+                            <button class="price-filter-btn" data-rice="paddy">ধান</button>
+                        </div>
+                        <div class="price-grid" id="priceGrid"></div>
+                    </div>
+                </div>
+                <!-- Profit Calculator -->
+                <div class="market-right">
+                    <div class="profit-card">
+                        <div class="profit-card-head">লাভ-ক্ষতি হিসাবক</div>
+                        <div class="profit-fields">
+                            <div class="profit-field-row">
+                                <div class="profit-field">
+                                    <label class="profit-label">জমির পরিমাণ (একর)</label>
+                                    <input type="number" id="profitLand" class="fert-input" placeholder="১" value="1"
+                                        min="0.1" step="0.1">
+                                </div>
+                                <div class="profit-field">
+                                    <label class="profit-label">আনুমানিক ফলন (মণ/একর)</label>
+                                    <input type="number" id="profitYield" class="fert-input" placeholder="৬০" value="60"
+                                        min="1">
+                                </div>
+                            </div>
+                            <div class="profit-field-row">
+                                <div class="profit-field">
+                                    <label class="profit-label">ধানের বিক্রয় মূল্য (টাকা/মণ)</label>
+                                    <input type="number" id="profitPrice" class="fert-input" placeholder="৮০০"
+                                        value="800" min="1">
+                                </div>
+                                <div class="profit-field">
+                                    <label class="profit-label">বীজের খরচ (টাকা)</label>
+                                    <input type="number" id="costSeed" class="fert-input" placeholder="১৫০০"
+                                        value="1500" min="0">
+                                </div>
+                            </div>
+                            <div class="profit-field-row">
+                                <div class="profit-field">
+                                    <label class="profit-label">সারের খরচ (টাকা)</label>
+                                    <input type="number" id="costFertilizer" class="fert-input" placeholder="৩০০০"
+                                        value="3000" min="0">
+                                </div>
+                                <div class="profit-field">
+                                    <label class="profit-label">সেচের খরচ (টাকা)</label>
+                                    <input type="number" id="costIrrigation" class="fert-input" placeholder="২০০০"
+                                        value="2000" min="0">
+                                </div>
+                            </div>
+                            <div class="profit-field-row">
+                                <div class="profit-field">
+                                    <label class="profit-label">কীটনাশকের খরচ (টাকা)</label>
+                                    <input type="number" id="costPesticide" class="fert-input" placeholder="১০০০"
+                                        value="1000" min="0">
+                                </div>
+                                <div class="profit-field">
+                                    <label class="profit-label">শ্রমের খরচ (টাকা)</label>
+                                    <input type="number" id="costLabor" class="fert-input" placeholder="৫০০০"
+                                        value="5000" min="0">
+                                </div>
+                            </div>
+                            <button id="calcProfitBtn" class="btn btn-primary btn-full">লাভ হিসাব করুন</button>
+                        </div>
+                        <!-- Profit Result -->
+                        <div class="profit-result" id="profitResult" style="display:none;">
+                            <div class="profit-result-grid">
+                                <div class="profit-stat">
+                                    <div class="ps-label">মোট আয়</div>
+                                    <div class="ps-val ps-income" id="psIncome"></div>
+                                </div>
+                                <div class="profit-stat">
+                                    <div class="ps-label">মোট খরচ</div>
+                                    <div class="ps-val ps-cost" id="psCost"></div>
+                                </div>
+                                <div class="profit-stat ps-main">
+                                    <div class="ps-label">নিট লাভ</div>
+                                    <div class="ps-val ps-profit" id="psProfit"></div>
+                                </div>
+                                <div class="profit-stat">
+                                    <div class="ps-label">প্রতি একরে লাভ</div>
+                                    <div class="ps-val" id="psPerAcre"></div>
+                                </div>
+                            </div>
+                            <div class="profit-bar-wrap">
+                                <div class="profit-bar-label">খরচের বিভাজন</div>
+                                <div class="profit-bar-chart" id="profitBarChart"></div>
+                            </div>
+                            <div class="profit-advice" id="profitAdvice"></div>
+                        </div>
+                    </div>
+                    <!-- Govt Subsidy Info -->
+                    <div class="subsidy-card">
+                        <div class="subsidy-head">📋 সরকারি সহায়তা ও ভর্তুকি</div>
+                        <div class="subsidy-list">
+                            <div class="subsidy-item"><span class="si-badge si-green">সক্রিয়</span>
+                                <div class="si-info">
+                                    <div class="si-title">কৃষি উপকরণ সহায়তা কার্ড</div>
+                                    <div class="si-desc">কৃষকরা ভর্তুকি মূল্যে সার ও বীজ পাবেন</div>
+                                </div>
+                            </div>
+                            <div class="subsidy-item"><span class="si-badge si-blue">ঋণ</span>
+                                <div class="si-info">
+                                    <div class="si-title">কৃষি ঋণ সুবিধা</div>
+                                    <div class="si-desc">৪% সুদে কৃষি ব্যাংক থেকে ঋণ পাওয়া যাচ্ছে</div>
+                                </div>
+                            </div>
+                            <div class="subsidy-item"><span class="si-badge si-amber">বিতরণ</span>
+                                <div class="si-info">
+                                    <div class="si-title">বিনামূল্যে বীজ বিতরণ</div>
+                                    <div class="si-desc">উপজেলা কৃষি অফিস থেকে উচ্চফলনশীল বীজ</div>
+                                </div>
+                            </div>
+                            <div class="subsidy-item"><span class="si-badge si-green">নতুন</span>
+                                <div class="si-info">
+                                    <div class="si-title">কৃষক বন্ধু প্রণোদনা ২০২৫</div>
+                                    <div class="si-desc">প্রতি বিঘায় ৫০০ টাকা নগদ সহায়তা</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════
+         NEW: TRUST & UPZILA SUPPORT
+    ═══════════════════════════════════════════ -->
+    <section id="trust" class="section-trust">
+        <div class="container">
+            <div class="section-head">
+                <div class="section-kicker">বিশ্বাস ও যোগাযোগ</div>
+                <h2 class="section-title">কৃষকদের আস্থা বাড়াতে আমরা কী বলছি</h2>
+                <p class="section-desc">রোগ নির্ণয়ের নির্ভুলতা, সরকারি অনুমোদন, সফল গল্প এবং ডেটা প্রাইভেসি পরিষ্কারভাবে দেখান।</p>
+            </div>
+            <div class="trust-grid">
+                <div class="trust-cards">
+                    <article class="trust-card">
+                        <div class="tc-emoji">✅</div>
+                        <h3>বিশ্বাসের বাধা</h3>
+                        <p>AI বলেছে মানেই সত্যি — এটা কৃষক এখনো জানেন না। আমরা পরীক্ষিত তথ্য, বিশেষজ্ঞ যাচাই ও রিয়েল-ফল দেখিয়ে আস্থা ধরাব।</p>
+                    </article>
+                    <article class="trust-card">
+                        <div class="tc-emoji">🏛️</div>
+                        <h3>BRRI ও DAE অনুমোদন</h3>
+                        <p>Bangladesh Rice Research Institute বা কৃষি মন্ত্রণালয়ে অনুমোদন পেলে কৃষক এবং কর্তৃপক্ষ উভয়ের আস্থা বাড়ে।</p>
+                    </article>
+                    <article class="trust-card">
+                        <div class="tc-emoji">📖</div>
+                        <h3>সফলতার গল্প</h3>
+                        <p>গাজীপুরের রহিম সাহেব এই অ্যাপ ব্যবহার করে ব্লাস্ট রোগ আগে ধরেছেন — এমন বাস্তব গল্প কৃষকের আস্থা বাড়ায়।</p>
+                    </article>
+                    <article class="trust-card">
+                        <div class="tc-emoji">🔒</div>
+                        <h3>ডেটা প্রাইভেসি</h3>
+                        <p>আপনার জমির তথ্য, ছবি কোথায় যাচ্ছে — সহজ বাংলায় বলুন। “আপনার তথ্য শুধু আপনার” — এই আশ্বাস দরকার।</p>
+                    </article>
+                </div>
+                <div class="trust-sidebar">
+                    <div class="contact-card">
+                        <div class="card-head">উপজেলা কৃষি অফিস যোগাযোগ</div>
+                        <p>আপনার এলাকার উপজেলা কৃষি অফিসের সাথে সরাসরি যোগাযোগ করুন। তাদের সাথে ফোনে কথা বলুন বা অফিসে গিয়ে বিস্তারিত নিন।</p>
+                        <ul class="contact-list">
+                            <li><strong>গাজীপুর উপজেলা</strong> — ০১৭১১১২২২৩৩</li>
+                            <li><strong>সিলেট জেলা</strong> — ০১৯২১১২২২৩৩</li>
+                            <li><strong>ঢাকা উত্তর</strong> — ০১৮১২৩৪৫৬৭৮</li>
+                        </ul>
+                        <button id="upazilaSearchBtn" class="btn btn-primary btn-full">আপনার উপজেলা অফিস খুঁজুন</button>
+                    </div>
+                    <div class="video-card">
+                        <div class="card-head">অ্যাপ কীভাবে কাজ করে</div>
+                        <video controls width="100%" style="border-radius:16px;background:#000;">
+                            <source src="demo.mp4" type="video/mp4">
+                            আপনার ব্রাউজার ভিডিও দেখাতে পারছে না।
+                        </video>
+                        <p class="video-note">৩-৪ মিনিটের ভিডিওতে দেখুন কীভাবে ছবি তুলবেন, রোগ শনাক্ত করবেন এবং বাজারদর/সার তথ্য ব্যবহার করবেন।</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════
+         NEW: AI CHATBOT SECTION
+    ═══════════════════════════════════════════ -->
+    <section id="chatbot" class="section-chatbot">
+        <div class="container">
+            <div class="section-head">
+                <div class="section-kicker">AI কৃষি পরামর্শ</div>
+                <h2 class="section-title">বাংলায় কৃষি পরামর্শ চ্যাটবট</h2>
+                <p class="section-desc">আপনার যেকোনো কৃষি সমস্যা নিয়ে সরাসরি প্রশ্ন করুন। AI তাৎক্ষণিক পরামর্শ দেবে।
+                </p>
+                <button type="button" class="listen-btn">শুনুন</button>
+            </div>
+            <div class="chatbot-layout">
+                <div class="chatbot-main">
+                    <!-- Chat Window -->
+                    <div class="chat-window" id="chatWindow">
+                        <div class="chat-messages" id="chatMessages">
+                            <!-- Welcome message -->
+                            <div class="chat-msg bot-msg">
+                                <div class="msg-avatar">🌾</div>
+                                <div class="msg-bubble">
+                                    <div class="msg-text">আস্সালামু আলাইকুম! আমি কৃষক বন্ধু AI। আপনার ধান চাষ সংক্রান্ত
+                                        যেকোনো প্রশ্ন করুন। যেমন:
+                                        <ul class="welcome-suggestions">
+                                            <li>আমার ধানের পাতা হলুদ হয়ে যাচ্ছে কেন?</li>
+                                            <li>এই মাসে কী সার দেব?</li>
+                                            <li>বোরো ধানে কখন সেচ দিতে হয়?</li>
+                                            <li>ব্লাস্ট রোগের প্রতিকার কী?</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Typing indicator -->
+                        <div class="typing-indicator" id="typingIndicator" style="display:none;">
+                            <div class="msg-avatar">🌾</div>
+                            <div class="typing-dots"><span></span><span></span><span></span></div>
+                        </div>
+                    </div>
+                    <!-- Input Area -->
+                    <div class="chat-input-area">
+                        <div class="quick-questions" id="quickQuestions">
+                            <span class="qq-label">দ্রুত প্রশ্ন:</span>
+                            <button class="qq-btn" data-q="ধানের পাতা হলুদ হয়ে যাচ্ছে, কী করব?">পাতা হলুদ</button>
+                            <button class="qq-btn" data-q="বোরো ধানে এই মাসে কী সার দেব?">মাসিক সার</button>
+                            <button class="qq-btn" data-q="ধানের ব্লাস্ট রোগ কীভাবে প্রতিরোধ করব?">ব্লাস্ট রোগ</button>
+                            <button class="qq-btn" data-q="সেচ কখন দিতে হয়?">সেচ সময়</button>
+                            <button class="qq-btn" data-q="ধান কাটার উপযুক্ত সময় কখন?">কাটার সময়</button>
+                        </div>
+                        <div class="chat-input-row">
+                            <textarea id="chatInput" class="chat-textarea"
+                                placeholder="আপনার প্রশ্ন লিখুন... (যেমন: আমার ধানের পাতা হলুদ হয়ে যাচ্ছে কেন?)"
+                                rows="2"></textarea>
+                            <button id="voiceBtn" class="voice-btn" title="ভয়েস ইনপুট">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                                    <line x1="12" y1="19" x2="12" y2="23"></line>
+                                    <line x1="8" y1="23" x2="16" y2="23"></line>
+                                </svg>
+                            </button>
+                            <button id="sendChatBtn" class="chat-send-btn" title="পাঠান">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="voice-status" id="voiceStatus"></div>
+                        <div class="chat-footer-note">
+                            <span>⚡ Anthropic Claude API দ্বারা চালিত</span>
+                            <span id="chatStatus"></span>
+                        </div>
+                    </div>
+                </div>
+                <!-- Sidebar -->
+                <div class="chatbot-sidebar">
+                    <div class="sidebar-card">
+                        <div class="sidebar-card-head">📌 জনপ্রিয় প্রশ্নসমূহ</div>
+                        <div class="popular-questions">
+                            <button class="pq-item" data-q="বোরো মৌসুমে সার দেওয়ার সময়সূচি কী?">বোরো মৌসুমে সার
+                                দেওয়ার সময়সূচি কী?</button>
+                            <button class="pq-item" data-q="ধানের টুংরো রোগের লক্ষণ ও প্রতিকার কী?">ধানের টুংরো রোগের
+                                লক্ষণ ও প্রতিকার কী?</button>
+                            <button class="pq-item" data-q="আবহাওয়া আর্দ্র থাকলে কোন রোগের ঝুঁকি বেশি?">আর্দ্র
+                                আবহাওয়ায় রোগের ঝুঁকি</button>
+                            <button class="pq-item" data-q="উফশী ধানের চারা তৈরির নিয়ম কী?">উফশী ধানের চারা তৈরির
+                                নিয়ম</button>
+                            <button class="pq-item" data-q="ধানের জমিতে আগাছা দমনের সেরা পদ্ধতি কী?">আগাছা দমনের সেরা
+                                পদ্ধতি</button>
+                            <button class="pq-item" data-q="ধান সংগ্রহের পর কীভাবে সংরক্ষণ করব?">ধান সংরক্ষণ
+                                পদ্ধতি</button>
+                        </div>
+                    </div>
+                    <div class="sidebar-card sidebar-tips">
+                        <div class="sidebar-card-head">💡 পরামর্শ টিপস</div>
+                        <ul class="tips-list">
+                            <li>প্রশ্নে আপনার এলাকা ও মৌসুম উল্লেখ করুন</li>
+                            <li>রোগের লক্ষণ বিস্তারিত বর্ণনা করুন</li>
+                            <li>জমির পরিমাণ ও ধানের জাত জানান</li>
+                            <li>ছবি আপলোড করে রোগ নির্ণয় করতে পারবেন</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="footer-inner">
+            <div class="footer-brand">
+                <div class="fb-name">কৃষক বন্ধু</div>
+                <div class="fb-tagline">কৃত্রিম বুদ্ধিমত্তা ভিত্তিক ধানের রোগ নির্ণয়, আবহাওয়া পূর্বাভাস ও সম্পূর্ণ
+                    কৃষি ব্যবস্থাপনা</div>
+                <div class="fb-inst">ইনস্টিটিউট অব ইনফরমেশন টেকনোলজি (আইআইটি)<br>জাহাঙ্গীরনগর বিশ্ববিদ্যালয়, বাংলাদেশ
+                </div>
+            </div>
+            <div class="footer-nav">
+                <div class="fn-title">বৈশিষ্ট্যসমূহ</div>
+                <a href="#detect">রোগ নির্ণয়</a>
+                <a href="#weather-forecast">আবহাওয়া পূর্বাভাস</a>
+                <a href="#crop-calendar">ফসল পঞ্জিকা</a>
+                <a href="#fertilizer-calc">সার ক্যালকুলেটর</a>
+                <a href="#market">বাজারদর</a>
+                <a href="#chatbot">AI পরামর্শ</a>
+            </div>
+            <div class="footer-nav">
+                <div class="fn-title">তত্ত্বাবধায়ক</div>
+                <div class="fn-supervisor">ড. রিসালা তাসিন খান</div>
+                <div class="fn-role">অধ্যাপক, আইআইটি-জেইউ</div>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <span>© ২০২৬ কৃষক বন্ধু — আইআইটি, জাহাঙ্গীরনগর বিশ্ববিদ্যালয়</span>
+            <span>সকল স্বত্ব সংরক্ষিত</span>
+        </div>
     </footer>
-  </div>
 
-  <script>
-    const API_BASE = "http://localhost:8000/api";
-    let currentImageFile = null;
-
-    // Tab switching
-    const tabs = { home: document.getElementById('homeTab'), detect: document.getElementById('detectTab'), forecast: document.getElementById('forecastTab') };
-    const btns = document.querySelectorAll('.tab-btn');
-    function switchTab(tabId) {
-      Object.values(tabs).forEach(t => t.classList.add('hidden'));
-      tabs[tabId].classList.remove('hidden');
-      btns.forEach(btn => {
-        if(btn.dataset.tab === tabId) btn.classList.add('bg-amber-500', 'text-green-900');
-        else btn.classList.remove('bg-amber-500', 'text-green-900');
-      });
-      if(tabId === 'forecast') updateForecast();
-    }
-    btns.forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
-
-    // Upload logic
-    const uploadArea = document.getElementById('uploadArea');
-    const fileInput = document.getElementById('imageInput');
-    const previewContainer = document.getElementById('previewContainer');
-    const previewImg = document.getElementById('previewImg');
-    const resetBtn = document.getElementById('resetBtn');
-    const analyzeBtn = document.getElementById('analyzeBtn');
-    const resultDiv = document.getElementById('resultContainer');
-    const loadingDiv = document.getElementById('loadingSpinner');
-
-    uploadArea.addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', (e) => {
-      if(e.target.files && e.target.files[0]) {
-        currentImageFile = e.target.files[0];
-        const reader = new FileReader();
-        reader.onload = (ev) => { previewImg.src = ev.target.result; previewContainer.classList.remove('hidden'); uploadArea.classList.add('hidden'); resultDiv.innerHTML = ''; };
-        reader.readAsDataURL(currentImageFile);
-      }
-    });
-    resetBtn.addEventListener('click', () => {
-      currentImageFile = null;
-      previewContainer.classList.add('hidden');
-      uploadArea.classList.remove('hidden');
-      fileInput.value = '';
-      resultDiv.innerHTML = '';
-    });
-
-    analyzeBtn.addEventListener('click', async () => {
-      if(!currentImageFile) { alert('দয়া করে একটি ছবি নির্বাচন করুন'); return; }
-      loadingDiv.classList.remove('hidden');
-      resultDiv.innerHTML = '';
-      const formData = new FormData();
-      formData.append('file', currentImageFile);
-      try {
-        const res = await fetch(`${API_BASE}/predict`, { method: 'POST', body: formData });
-        if(!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        displayResult(data);
-      } catch(err) {
-        resultDiv.innerHTML = `<div class="bg-red-100 text-red-700 p-4 rounded-xl">❌ সংযোগ সমস্যা: ${err.message}. ব্যাকএন্ড চালু আছে কিনা যাচাই করুন (FastAPI: uvicorn app:app --reload)</div>`;
-      } finally {
-        loadingDiv.classList.add('hidden');
-      }
-    });
-
-    function displayResult(data) {
-      const probs = data.probabilities;
-      const allClasses = data.all_classes;
-      const sorted = allClasses.map((name, idx) => ({ name, prob: probs[idx]*100, bn: getBnName(name) })).sort((a,b)=>b.prob-a.prob);
-      const barsHtml = sorted.map(item => `
-        <div class="space-y-1">
-          <div class="flex justify-between text-sm"><span>${item.bn}</span><span>${item.prob.toFixed(1)}%</span></div>
-          <div class="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden"><div class="prob-bar h-full rounded-full" style="width: ${item.prob}%; background: ${getColor(item.name)}"></div></div>
+    <!-- UPAZILA LOOKUP MODAL -->
+    <div class="upazila-overlay" id="upazilaOverlay">
+      <div class="auth-modal" style="position:relative; max-width: 460px;">
+        <button class="auth-close-btn" id="upazilaCloseBtn">✕</button>
+        <div class="auth-modal-head">
+          <div class="auth-modal-title">উপজেলা অফিস খুঁজুন</div>
+          <div class="auth-modal-sub">আপনার বিভাগ, জেলা ও উপজেলা নির্বাচন করুন।</div>
         </div>
-      `).join('');
-      const html = `
-        <div class="p-5 rounded-2xl" style="background: ${data.color}15; border-left: 6px solid ${data.color}">
-          <div class="flex items-center gap-3 text-3xl"><span>${data.emoji}</span><span class="text-2xl font-bold" style="color:${data.color}">${data.disease_bn}</span></div>
-          <div class="mt-2 flex gap-3 flex-wrap"><span class="bg-white/60 rounded-full px-3 py-1 text-sm">নির্ভুলতা: ${data.confidence.toFixed(1)}%</span><span class="rounded-full px-3 py-1 text-sm font-semibold" style="background:${data.color}20; color:${data.color}">তীব্রতা: ${data.severity}</span></div>
-          <p class="mt-3 text-gray-700">${data.description}</p>
+        <div class="auth-modal-body">
+          <div class="auth-field">
+            <label class="auth-label">বিভাগ</label>
+            <select id="upazilaDivisionSelect" class="loc-select"><option value="">-- বিভাগ নির্বাচন করুন --</option></select>
+          </div>
+          <div class="auth-field">
+            <label class="auth-label">জেলা</label>
+            <select id="upazilaDistrictSelect" class="loc-select" disabled><option value="">-- জেলা নির্বাচন করুন --</option></select>
+          </div>
+          <div class="auth-field">
+            <label class="auth-label">উপজেলা</label>
+            <select id="upazilaSubdistrictSelect" class="loc-select" disabled><option value="">-- উপজেলা নির্বাচন করুন --</option></select>
+          </div>
+          <button class="auth-submit-btn" id="upazilaLookupBtn" disabled>কান্টাক্ট দেখুন</button>
+          <div class="upazila-result" id="upazilaResult" style="display:none; margin-top: 16px;">
+            <div class="upazila-result-card">
+              <div class="upazila-result-title" id="upazilaResultName"></div>
+              <div class="upazila-result-info" id="upazilaResultOffice"></div>
+              <div class="upazila-result-info" id="upazilaResultPhone"></div>
+              <div class="upazila-result-note">দয়া করে আগেই অফিসে কল করে সময় ও প্রয়োজনীয় দস্তাবেজ নিশ্চিত করুন।</div>
+            </div>
+          </div>
         </div>
-        <div class="bg-white/70 rounded-2xl p-4"><h4 class="font-bold">💊 চিকিৎসা পরামর্শ</h4><p class="mt-1">${data.treatment}</p></div>
-        <div><h4 class="font-semibold mb-2">সম্ভাব্যতা বিশ্লেষণ</h4>${barsHtml}</div>
-      `;
-      resultDiv.innerHTML = html;
-      // animate bars
-      setTimeout(() => document.querySelectorAll('.prob-bar').forEach(bar => bar.style.transition = 'width 0.6s ease'), 50);
-    }
+      </div>
+    </div>
 
-    function getBnName(en) {
-      const map = { Bacterial:'ব্যাকটেরিয়াল রোগ', Fungal:'ছত্রাকজনিত রোগ', Normal:'স্বাভাবিক', Others:'অন্যান্য', Viral:'ভাইরাসজনিত রোগ' };
-      return map[en] || en;
-    }
-    function getColor(en) {
-      const map = { Bacterial:'#c0392b', Fungal:'#d35400', Normal:'#1e7e34', Others:'#6c3483', Viral:'#922b21' };
-      return map[en] || '#2d6a2f';
-    }
+    <!-- AUTH MODAL -->
+    <div class="auth-overlay" id="authOverlay">
+      <div class="auth-modal" style="position:relative;">
+        <button class="auth-close-btn" id="authCloseBtn">✕</button>
+        <div class="auth-modal-head">
+          <div class="auth-modal-title" id="authModalTitle">কৃষক বন্ধুতে স্বাগতম</div>
+          <div class="auth-modal-sub" id="authModalSub">আপনার ভূমিকা নির্বাচন করুন এবং সাইন ইন করুন</div>
+        </div>
+        <div class="auth-modal-body">
+          <div class="auth-role-tabs">
+            <button class="auth-role-tab active" data-role="farmer" id="roleTabFarmer">🌾 কৃষক</button>
+            <button class="auth-role-tab" data-role="authority" id="roleTabAuthority">🏛️ কর্তৃপক্ষ</button>
+          </div>
+          <div id="authFormArea">
+            <div class="auth-field">
+              <label class="auth-label">মোবাইল নম্বর / ইউজারনেম</label>
+              <input type="text" class="auth-input" id="authUsername" placeholder="যেমন: 01712345678">
+            </div>
+            <div class="auth-field">
+              <label class="auth-label">পাসওয়ার্ড</label>
+              <input type="password" class="auth-input" id="authPassword" placeholder="পাসওয়ার্ড দিন">
+            </div>
+            <div class="auth-error" id="authError">ভুল ইউজারনেম বা পাসওয়ার্ড।</div>
+            <button class="auth-submit-btn" id="authSubmitBtn">সাইন ইন করুন</button>
+            <div class="auth-switch">
+              নতুন? <a id="authSwitchLink">নিবন্ধন করুন</a>
+            </div>
+          </div>
+          <!-- Register form (hidden by default, shown via JS) -->
+          <div id="authRegArea" style="display:none;">
+            <div class="auth-field">
+              <label class="auth-label">পুরো নাম</label>
+              <input type="text" class="auth-input" id="regName" placeholder="আপনার নাম">
+            </div>
+            <div class="auth-field">
+              <label class="auth-label">মোবাইল নম্বর</label>
+              <input type="text" class="auth-input" id="regMobile" placeholder="01XXXXXXXXX">
+            </div>
+            <div class="auth-field">
+              <label class="auth-label">পাসওয়ার্ড</label>
+              <input type="password" class="auth-input" id="regPassword" placeholder="কমপক্ষে ৬ অক্ষর">
+            </div>
+            <div id="regRoleField" style="display:none;">
+              <div class="auth-field">
+                <label class="auth-label">কর্তৃপক্ষ কোড</label>
+                <input type="text" class="auth-input" id="regAuthCode" placeholder="প্রদত্ত কোড দিন">
+              </div>
+            </div>
+            <div class="auth-error" id="regError"></div>
+            <button class="auth-submit-btn" id="regSubmitBtn">নিবন্ধন করুন</button>
+            <div class="auth-switch"><a id="backToLoginLink">← সাইন ইনে ফিরুন</a></div>
+          </div>
+        </div>
+      </div>
+    </div>
 
-    // Forecast simulation (matches backend-free)
-    async function updateForecast() {
-      const forecastDiv = document.getElementById('forecastData');
-      const mock = {
-        temp: 32 + Math.floor(Math.random() * 5) - 2,
-        humidity: 70 + Math.floor(Math.random() * 18),
-        soil: 55 + Math.floor(Math.random() * 25),
-        rain: '২৫ মিমি (আগামী ২৪ ঘন্টা)',
-        risk: Math.random() > 0.6 ? 'উচ্চ' : (Math.random() > 0.3 ? 'মাঝারি' : 'নিম্ন'),
-        advice: ''
-      };
-      mock.advice = mock.risk === 'উচ্চ' ? 'ছত্রাকনাশক প্রয়োগের প্রস্তুতি নিন।' : (mock.risk === 'মাঝারি' ? 'নিয়মিত পর্যবেক্ষণ জরুরি।' : 'বর্তমান পরিস্থিতি স্বাভাবিক।');
-      const riskPercent = mock.risk === 'উচ্চ' ? 85 : (mock.risk === 'মাঝারি' ? 55 : 25);
-      forecastDiv.innerHTML = `
-        <div class="space-y-4">
-          <div class="flex justify-between bg-white/40 p-3 rounded-xl"><span>🌡️ তাপমাত্রা</span><span class="font-bold">${mock.temp}°C</span></div>
-          <div class="flex justify-between bg-white/40 p-3 rounded-xl"><span>💧 আর্দ্রতা</span><span class="font-bold">${mock.humidity}%</span></div>
-          <div class="flex justify-between bg-white/40 p-3 rounded-xl"><span>🌱 মাটির আর্দ্রতা</span><span class="font-bold">${mock.soil}%</span></div>
-          <div class="flex justify-between bg-white/40 p-3 rounded-xl"><span>☔ বৃষ্টিপাত</span><span class="font-bold">${mock.rain}</span></div>
-        </div>
-        <div class="bg-gradient-to-br from-green-50 to-amber-50 rounded-2xl p-5 text-center">
-          <h3 class="font-bold text-lg">ধান রোগ ঝুঁকি মিটার</h3>
-          <div class="relative h-6 w-full rounded-full overflow-hidden mt-2" style="background:linear-gradient(90deg,#2b8c3e,#e6b422,#c73d23)"><div class="h-full bg-opacity-0" style="width:${riskPercent}%"></div></div>
-          <p class="text-2xl font-bold mt-3">${mock.risk} ঝুঁকি</p>
-          <div class="mt-3 text-sm bg-white/40 rounded-full p-2">📋 পরামর্শ: ${mock.advice}</div>
-        </div>
-      `;
-    }
-    // initial load
-    switchTab('home');
-    if (document.querySelector('[data-tab="forecast"]')) setInterval(() => { if(!document.getElementById('forecastTab').classList.contains('hidden')) updateForecast(); }, 10000);
-  </script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="script.js"></script>
 </body>
+
 </html>

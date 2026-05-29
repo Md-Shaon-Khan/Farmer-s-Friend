@@ -1,0 +1,10 @@
+{
+  "name": "কৃষক বন্ধু",
+  "short_name": "কৃষক বন্ধু",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#faf8f3",
+  "theme_color": "#0d1f0e",
+  "description": "বাংলায় কৃষকদের জন্য ধান রোগ শনাক্তকরণ, আবহাওয়া, বাজারদর এবং কৃষি পরামর্শ।",
+  "lang": "bn-BD"
+}
