@@ -123,45 +123,182 @@ function handleFile(file) {
 }
 
 async function predictDisease(file) {
-    resultEmpty.style.display = 'none'; resultContent.style.display = 'none'; loadingOverlay.style.display = 'flex';
+    resultEmpty.style.display = 'none';
+    resultContent.style.display = 'none';
+    loadingOverlay.style.display = 'flex';
+ 
     try {
         const formData = new FormData();
         formData.append('file', file);
-        const response = await fetch(API_BASE + '/api/predict', { method:'POST', body:formData, signal:AbortSignal.timeout(30000) });
+        const response = await fetch(API_BASE + '/api/predict', {
+            method: 'POST',
+            body: formData,
+            signal: AbortSignal.timeout(30000)
+        });
         if (!response.ok) throw new Error('সার্ভার ত্রুটি: ' + response.status);
-        renderResult(await response.json());
-    } catch(err) {
-        loadingOverlay.style.display = 'none'; resultEmpty.style.display = 'flex';
-        resultEmpty.querySelector('.rp-title').textContent = 'সংযোগ ব্যর্থ হয়েছে';
-        resultEmpty.querySelector('.rp-sub').textContent = 'অনুগ্রহ করে FastAPI সার্ভার চালু আছে কিনা নিশ্চিত করুন। (' + API_BASE + ')';
+ 
+        const data = await response.json();
+ 
+        loadingOverlay.style.display = 'none';
+ 
+        // ── Gatekeeper: not_paddy → reject ──
+        if (data.is_paddy === false) {
+            showNotPaddyMessage(data.gatekeeper_confidence, data.message);
+            return;
+        }
+ 
+        // ── paddy বা uncertain → disease result দেখাও ──
+        renderResult(data);
+ 
+    } catch (err) {
+        loadingOverlay.style.display = 'none';
+        showErrorMessage('সংযোগ ব্যর্থ হয়েছে', 'অনুগ্রহ করে FastAPI সার্ভার চালু আছে কিনা নিশ্চিত করুন। (' + API_BASE + ')');
     }
 }
 
+function showErrorMessage(title, sub) {
+    // আগের not-paddy card থাকলে সরাও
+    const old = document.getElementById('notPaddyCard');
+    if (old) old.remove();
+ 
+    resultEmpty.style.display = 'flex';
+    // rp-title আর rp-sub safely update করো
+    const titleEl = resultEmpty.querySelector('.rp-title');
+    const subEl   = resultEmpty.querySelector('.rp-sub');
+    if (titleEl) titleEl.textContent = title;
+    if (subEl)   subEl.textContent   = sub;
+}
+
+function showNotPaddyMessage(confidence, backendMessage) {
+    // resultEmpty কে সরিয়ে custom not-paddy card দেখাও
+    resultEmpty.style.display = 'none';
+    resultContent.style.display = 'none';
+ 
+    // আগের not-paddy card থাকলে সরাও
+    const old = document.getElementById('notPaddyCard');
+    if (old) old.remove();
+ 
+    const card = document.createElement('div');
+    card.id = 'notPaddyCard';
+    card.style.cssText = `
+        display:flex; flex-direction:column; align-items:center; justify-content:center;
+        gap:16px; padding:40px 24px; text-align:center;
+        background:#f0fdf4; border:2px solid #bbf7d0; border-radius:20px;
+        animation: fadeIn 0.3s ease;
+    `;
+ 
+    const msg = backendMessage || 'এটি ধান গাছের ছবি নয়।';
+    const conf = confidence != null ? confidence : '—';
+ 
+    card.innerHTML = `
+        <div style="font-size:56px; line-height:1;">🚫🌾</div>
+        <div style="font-size:20px; font-weight:700; color:#166534;">ধান গাছের ছবি নয়</div>
+        <div style="font-size:15px; color:#4b7c59; max-width:320px; line-height:1.6;">${msg}</div>
+        <div style="
+            background:#dcfce7; border:1px solid #86efac; border-radius:999px;
+            padding:6px 18px; font-size:13px; color:#15803d; font-weight:600;
+        ">গেটকিপার নিশ্চয়তা: ${conf}%</div>
+        <div style="font-size:13px; color:#6b7280; margin-top:4px;">
+            ধান গাছের পাতার স্পষ্ট ছবি আপলোড করলে রোগ নির্ণয় করা যাবে।
+        </div>
+    `;
+ 
+    // result panel এ add করো
+    const resultPanel = document.getElementById('resultPanel');
+    resultPanel.appendChild(card);
+}
+
 function renderResult(data) {
-    loadingOverlay.style.display = 'none'; resultContent.style.display = 'flex';
-    const cls = data.disease_en; const colors = CLASS_COLORS[cls] || CLASS_COLORS['Normal'];
-    const header = document.getElementById('resultDiseaseCard'); header.style.background = colors.bg;
-    const iconEl = document.getElementById('resultIcon'); iconEl.textContent = CLASS_ICONS[cls] || '🌾'; iconEl.style.background = colors.cardBg;
-    document.getElementById('resultName').textContent = CLASS_LABELS_BN[cls] || cls; document.getElementById('resultName').style.color = colors.text;
-    document.getElementById('resultBn').textContent = data.disease_bn; document.getElementById('resultBn').style.color = colors.text;
-    document.getElementById('resultConf').textContent = 'নির্ভুলতা: ' + data.confidence.toFixed(1) + '%'; document.getElementById('resultConf').style.background = colors.cardBg; document.getElementById('resultConf').style.color = colors.text;
-    document.getElementById('resultSeverity').textContent = 'তীব্রতা: ' + data.severity; document.getElementById('resultSeverity').style.background = colors.cardBg; document.getElementById('resultSeverity').style.color = colors.text;
-    const probsDiv = document.getElementById('resultProbs'); probsDiv.innerHTML = '';
+    // আগের not-paddy card থাকলে সরাও
+    const old = document.getElementById('notPaddyCard');
+    if (old) old.remove();
+ 
+    loadingOverlay.style.display = 'none';
+    resultEmpty.style.display = 'none';
+    resultContent.style.display = 'flex';
+ 
+    const cls    = data.disease_en;
+    const colors = CLASS_COLORS[cls] || CLASS_COLORS['Normal'];
+ 
+    // Header card
+    const header = document.getElementById('resultDiseaseCard');
+    header.style.background = colors.bg;
+ 
+    const iconEl = document.getElementById('resultIcon');
+    iconEl.textContent  = CLASS_ICONS[cls] || '🌾';
+    iconEl.style.background = colors.cardBg;
+ 
+    document.getElementById('resultName').textContent  = CLASS_LABELS_BN[cls] || cls;
+    document.getElementById('resultName').style.color  = colors.text;
+    document.getElementById('resultBn').textContent    = data.disease_bn;
+    document.getElementById('resultBn').style.color    = colors.text;
+ 
+    const confEl = document.getElementById('resultConf');
+    confEl.textContent       = 'নির্ভুলতা: ' + data.confidence.toFixed(1) + '%';
+    confEl.style.background  = colors.cardBg;
+    confEl.style.color       = colors.text;
+ 
+    const sevEl = document.getElementById('resultSeverity');
+    sevEl.textContent      = 'তীব্রতা: ' + data.severity;
+    sevEl.style.background = colors.cardBg;
+    sevEl.style.color      = colors.text;
+ 
+    // ── Uncertain warning banner ──
+    const existingWarn = document.getElementById('gatekeeperWarning');
+    if (existingWarn) existingWarn.remove();
+ 
+    if (data.gatekeeper_status === 'uncertain' && data.gatekeeper_warning) {
+        const warnDiv = document.createElement('div');
+        warnDiv.id = 'gatekeeperWarning';
+        warnDiv.style.cssText = `
+            background:#fffbeb; border:1px solid #fcd34d; border-radius:12px;
+            padding:10px 14px; font-size:13px; color:#92400e;
+            margin-bottom:4px; display:flex; align-items:flex-start; gap:8px;
+        `;
+        warnDiv.innerHTML = `<span style="flex-shrink:0;">⚠️</span><span>${data.gatekeeper_warning}</span>`;
+        // result header এর পরে insert করো
+        header.insertAdjacentElement('afterend', warnDiv);
+    }
+ 
+    // Probability bars
+    const probsDiv = document.getElementById('resultProbs');
+    probsDiv.innerHTML = '';
     data.all_classes.forEach((label, i) => {
-        const pct = (data.probabilities[i]*100).toFixed(1); const c = CLASS_COLORS[label] || { bar:'#6b7280' }; const bn = CLASS_LABELS_BN[label] || label;
-        const row = document.createElement('div'); row.className = 'result-prob-row';
-        row.innerHTML = `<span class="result-prob-label">${bn}</span><div class="result-prob-track"><div class="result-prob-fill" style="width:0%;background:${c.bar}" data-width="${pct}"></div></div><span class="result-prob-pct">${pct}%</span>`;
+        const pct = (data.probabilities[i] * 100).toFixed(1);
+        const c   = CLASS_COLORS[label] || { bar: '#6b7280' };
+        const bn  = CLASS_LABELS_BN[label] || label;
+        const row = document.createElement('div');
+        row.className = 'result-prob-row';
+        row.innerHTML = `
+            <span class="result-prob-label">${bn}</span>
+            <div class="result-prob-track">
+                <div class="result-prob-fill" style="width:0%;background:${c.bar}" data-width="${pct}"></div>
+            </div>
+            <span class="result-prob-pct">${pct}%</span>`;
         probsDiv.appendChild(row);
     });
     requestAnimationFrame(() => requestAnimationFrame(() => {
-        probsDiv.querySelectorAll('.result-prob-fill').forEach(el => { el.style.width = el.dataset.width + '%'; });
+        probsDiv.querySelectorAll('.result-prob-fill').forEach(el => {
+            el.style.width = el.dataset.width + '%';
+        });
     }));
-    const descCard = document.getElementById('resultDescCard'); descCard.style.background = colors.bg;
-    document.getElementById('resultDesc').textContent = data.description; document.getElementById('resultDesc').style.color = colors.text; descCard.querySelector('.rc-label').style.color = colors.text;
-    const treatCard = document.getElementById('resultTreatCard'); treatCard.style.background = '#fffbeb';
-    document.getElementById('resultTreat').textContent = data.treatment; document.getElementById('resultTreat').style.color = '#92400e'; treatCard.querySelector('.rc-label').style.color = '#92400e';
+ 
+    // Description & treatment cards
+    const descCard = document.getElementById('resultDescCard');
+    descCard.style.background = colors.bg;
+    document.getElementById('resultDesc').textContent     = data.description;
+    document.getElementById('resultDesc').style.color     = colors.text;
+    descCard.querySelector('.rc-label').style.color       = colors.text;
+ 
+    const treatCard = document.getElementById('resultTreatCard');
+    treatCard.style.background = '#fffbeb';
+    document.getElementById('resultTreat').textContent    = data.treatment;
+    document.getElementById('resultTreat').style.color    = '#92400e';
+    treatCard.querySelector('.rc-label').style.color      = '#92400e';
+ 
+    // TTS
     const diseaseName = data.disease_bn || data.disease_en || 'রোগ';
-    const nextStep = data.treatment ? data.treatment.split('. ')[0] : 'পরামর্শ অনুযায়ী কাজ করুন';
+    const nextStep    = data.treatment ? data.treatment.split('. ')[0] : 'পরামর্শ অনুযায়ী কাজ করুন';
     speakText(`আপনার ধানে ${diseaseName} রোগ হয়েছে। ${nextStep}.`);
 }
 
