@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paddy Check — leaf disease screening</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Petrona:wght@400;500;600;700&family=Karla:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap header-row">
+    <a href="index.html" class="brand">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M4 20c0-7 2-11 1-16" stroke="var(--primary)" stroke-width="2" stroke-linecap="round"/><path d="M12 20c0-8 3-12 1-18" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/></svg>
+      Paddy Check
+    </a>
+    <nav class="site-nav">
+      <a href="index.html" class="is-active">Home</a>
+      <a href="pages/classify.html">Classify</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <section class="hero">
+    <div class="wrap hero-inner">
+      <div>
+        <h1>Read the field before it reads back.</h1>
+        <p>Photograph one leaf. We confirm it's paddy, then screen it against four outcomes — fungal, viral, bacterial or normal — with a confidence score, in seconds.</p>
+        <a href="pages/classify.html" class="cta">Classify a leaf</a>
+      </div>
+      <svg class="terraces" viewBox="0 0 360 260" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M0 230 Q 90 210 180 230 T 360 230" fill="none" stroke="var(--line)" stroke-width="2"/>
+        <path d="M0 190 Q 90 170 180 190 T 360 190" fill="none" stroke="var(--line)" stroke-width="2"/>
+        <path d="M0 150 Q 90 130 180 150 T 360 150" fill="none" stroke="var(--line)" stroke-width="2"/>
+        <g stroke="var(--primary)" stroke-width="3" stroke-linecap="round" fill="none">
+          <path d="M60 230 C 55 190 70 150 58 100"/>
+          <path d="M58 160 C 30 155 20 130 26 108"/>
+          <path d="M60 140 C 92 132 100 105 90 82"/>
+        </g>
+        <g stroke="var(--water)" stroke-width="3" stroke-linecap="round" fill="none">
+          <path d="M150 230 C 144 180 160 140 146 70"/>
+          <path d="M148 170 C 118 165 108 138 116 114"/>
+          <path d="M150 130 C 184 120 194 90 182 64"/>
+        </g>
+        <g stroke="var(--accent)" stroke-width="3" stroke-linecap="round" fill="none">
+          <path d="M250 230 C 244 185 262 150 246 90"/>
+          <path d="M248 175 C 220 168 210 142 218 120"/>
+          <ellipse cx="252" cy="86" rx="6" ry="12" fill="var(--accent)" stroke="none" transform="rotate(-18 252 86)"/>
+          <ellipse cx="234" cy="98" rx="5" ry="10" fill="var(--accent)" stroke="none" transform="rotate(-32 234 98)"/>
+        </g>
+      </svg>
+    </div>
+  </section>
+
+  <section class="band">
+    <div class="wrap">
+      <h2>How a photo becomes an answer</h2>
+      <div class="row-flow">
+        <div><div class="num">1</div><h3>Upload</h3><p>One leaf, filling most of the frame, in daylight.</p></div>
+        <div><div class="num">2</div><h3>Confirm</h3><p>We check the photo is paddy before reading anything else into it.</p></div>
+        <div><div class="num">3</div><h3>Classify</h3><p>The leaf is scored against four outcomes, with a confidence reading.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band">
+    <div class="wrap">
+      <h2>What we screen for</h2>
+      <p>Four outcomes cover most of what shows up on a paddy leaf.</p>
+      <div class="class-strip">
+        <span class="class-chip"><span class="dot fungal"></span>Fungal</span>
+        <span class="class-chip"><span class="dot viral"></span>Viral</span>
+        <span class="class-chip"><span class="dot bacterial"></span>Bacterial</span>
+        <span class="class-chip"><span class="dot normal"></span>Normal</span>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p>Paddy Check — a student project for paddy leaf screening.</p>
+  </div>
+</footer>
+
+<script src="js/main.js"></script>
+</body>
+</html>

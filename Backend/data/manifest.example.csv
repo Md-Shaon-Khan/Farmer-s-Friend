@@ -1,0 +1,9 @@
+image_path,label
+data/reference_images/bact_001.jpg,bacterial
+data/reference_images/bact_002.jpg,bacterial
+data/reference_images/fung_001.jpg,fungal
+data/reference_images/fung_002.jpg,fungal
+data/reference_images/vir_001.jpg,viral
+data/reference_images/vir_002.jpg,viral
+data/reference_images/norm_001.jpg,normal
+data/reference_images/norm_002.jpg,normal

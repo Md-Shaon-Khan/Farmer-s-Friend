@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Classify a leaf — Paddy Check</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Petrona:wght@400;500;600;700&family=Karla:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="../css/classify.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap header-row">
+    <a href="../index.html" class="brand">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M4 20c0-7 2-11 1-16" stroke="var(--primary)" stroke-width="2" stroke-linecap="round"/><path d="M12 20c0-8 3-12 1-18" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/></svg>
+      Paddy Check
+    </a>
+    <nav class="site-nav">
+      <a href="../index.html">Home</a>
+      <a href="classify.html" class="is-active">Classify</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <section class="classify-head">
+    <div class="wrap">
+      <h1>Upload a leaf photo</h1>
+      <p>We'll check it's paddy, then screen it for disease. This takes a few seconds.</p>
+    </div>
+  </section>
+
+  <section class="classify-body">
+    <div class="wrap classify-grid">
+
+      <div class="upload-col">
+        <div id="dropzone" class="dropzone">
+          <input type="file" id="fileInput" accept="image/*" hidden>
+          <img id="previewImg" class="preview-img" hidden alt="Preview of the uploaded leaf">
+          <div id="dropzoneContent" class="dropzone-content">
+            <p>Drag a photo here, or <button type="button" id="browseBtn" class="dz-link">browse your files</button></p>
+            <p class="dz-hint">JPG or PNG · one leaf, filling most of the frame</p>
+          </div>
+        </div>
+
+        <div class="upload-actions">
+          <button type="button" id="analyzeBtn" class="btn-primary" disabled>Analyze photo</button>
+          <button type="button" id="resetBtn" class="btn-ghost" hidden>Try another photo</button>
+        </div>
+
+        <p id="errorMessage" class="error-message" hidden></p>
+      </div>
+
+      <div class="result-col">
+        <div id="resultPlaceholder" class="result-placeholder">
+          <p style="margin:0;">Your result will appear here once you analyze a photo.</p>
+        </div>
+
+        <div id="resultCard" class="result-card" hidden></div>
+      </div>
+
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p>Paddy Check — a student project for paddy leaf screening.</p>
+  </div>
+</footer>
+
+<script src="../js/main.js"></script>
+<script src="../js/classify.js"></script>
+</body>
+</html>
