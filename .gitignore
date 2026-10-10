@@ -1,3 +1,7 @@
 venv/
-models/
 __pycache__/
+*.pyc
+.env
+
+# Model weights are not pushed from here. Whoever pushes them removes this line.
+*.pth

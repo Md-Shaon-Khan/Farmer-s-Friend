@@ -29,6 +29,13 @@ const resultCard = document.getElementById('resultCard');
 
 let selectedFile = null;
 
+// ---------- server status ----------
+const statusPill = document.getElementById('status');
+fetch(`${API_BASE_URL}/api/health`)
+  .then((r) => r.json())
+  .then(() => { statusPill.textContent = 'Server online'; statusPill.className = 'pill ok'; })
+  .catch(() => { statusPill.textContent = 'Server offline'; statusPill.className = 'pill bad'; });
+
 // ---------- file selection ----------
 
 function handleFileSelected(file) {
@@ -121,7 +128,10 @@ analyzeBtn.addEventListener('click', async () => {
     analyzeBtn.hidden = true;
     resetBtn.hidden = false;
   } catch (err) {
-    showError("Couldn't reach the classifier. Check that the backend is running and try again.");
+    console.error(err);
+    showError(err.message.startsWith('Server responded')
+      ? `The classifier returned an error (${err.message}). Check the uvicorn terminal for details.`
+      : "Couldn't reach the classifier. Check that the backend is running and that your page address is in ALLOWED_ORIGINS in config.py.");
     analyzeBtn.disabled = false;
     analyzeBtn.textContent = 'Analyze photo';
   }
@@ -170,7 +180,6 @@ function renderResult(data) {
     ${localizationSection(data.localization)}
     ${similarSection(data.similar_images)}
   `;
-  attachLocalizationToggle();
 }
 
 function localizationSection(localization) {
@@ -179,44 +188,19 @@ function localizationSection(localization) {
   const spotCount = (localization.spots || []).length;
   const countText = spotCount === 1 ? '1 spot detected' : `${spotCount} spots detected`;
   const heatmapSrc = `data:image/png;base64,${localization.heatmap_overlay_base64}`;
-  const boxedSrc = `data:image/png;base64,${localization.annotated_image_base64}`;
+  const boxedSrc = localization.annotated_image_base64
+    ? `data:image/png;base64,${localization.annotated_image_base64}` : '';
 
-  // Defaults to the heatmap view - a continuous color gradient reads
-  // better than boxes when the affected area is one connected patch
-  // rather than a few separate lesions. Boxes are still one tap away.
+  // Heatmap and boxes are shown together, side by side - no toggle.
   return `
     <div class="localization-section">
-      <div class="localization-header">
-        <h4>Where the problem is (${countText})</h4>
-        <div class="localization-toggle" role="tablist">
-          <button type="button" class="toggle-btn is-active" data-view="heatmap">Heatmap</button>
-          <button type="button" class="toggle-btn" data-view="boxes">Boxes</button>
-        </div>
+      <h4>Where the problem is (${countText})</h4>
+      <div class="localization-pair">
+        <figure><img src="${heatmapSrc}" alt="Heatmap of the affected area"><figcaption>Heatmap</figcaption></figure>
+        ${boxedSrc ? `<figure><img src="${boxedSrc}" alt="Affected spots marked with boxes"><figcaption>Boxes</figcaption></figure>` : ''}
       </div>
-      <img
-        class="localization-img"
-        id="localizationImg"
-        data-heatmap-src="${heatmapSrc}"
-        data-boxes-src="${boxedSrc}"
-        src="${heatmapSrc}"
-        alt="Leaf photo with the affected area highlighted"
-      >
     </div>
   `;
-}
-
-function attachLocalizationToggle() {
-  const buttons = resultCard.querySelectorAll('.localization-toggle .toggle-btn');
-  const img = document.getElementById('localizationImg');
-  if (!buttons.length || !img) return;
-
-  buttons.forEach((btn) => {
-    btn.addEventListener('click', () => {
-      buttons.forEach((b) => b.classList.remove('is-active'));
-      btn.classList.add('is-active');
-      img.src = btn.dataset.view === 'boxes' ? img.dataset.boxesSrc : img.dataset.heatmapSrc;
-    });
-  });
 }
 
 function confidenceRow(label, value) {

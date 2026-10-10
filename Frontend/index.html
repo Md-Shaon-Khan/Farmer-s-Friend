@@ -1,94 +1,124 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Paddy Check — leaf disease screening</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Petrona:wght@400;500;600;700&family=Karla:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css">
-</head>
-<body>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paddy Check – Rice leaf disease detection</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Sora:wght@600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css?v=10">
+</head><body>
+<div class="shell">
+<aside class="panel">
+  <a class="brand" href="index.html"><svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><path d="M16 29V14M16 14C16 7 11 4 5 4c0 7 4 10 11 10zM16 18c0-6 4-9 11-9 0 7-4 10-11 10z" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> Paddy Check</a>
+  <nav class="links"><a class="on" href="index.html">Home</a><a href="pages/classify.html">Classify</a></nav>
+  <h1 class="panel-title">Check your rice leaf in seconds</h1>
+  <ol class="steps"><li><span><b>Take a photo</b>One leaf, in daylight, close up.</span></li><li><span><b>Upload it</b>Add the photo on the Classify page.</span></li><li><span><b>Read the result</b>Disease, affected area and similar cases.</span></li></ol>
+  <div class="photo"><img src="assets/images/paddy.jpg" alt="Paddy field" onerror="this.remove()"></div>
+</aside>
 
-<header class="site-header">
-  <div class="wrap header-row">
-    <a href="index.html" class="brand">
-      <svg viewBox="0 0 24 24" fill="none"><path d="M4 20c0-7 2-11 1-16" stroke="var(--primary)" stroke-width="2" stroke-linecap="round"/><path d="M12 20c0-8 3-12 1-18" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/></svg>
-      Paddy Check
-    </a>
-    <nav class="site-nav">
-      <a href="index.html" class="is-active">Home</a>
-      <a href="pages/classify.html">Classify</a>
-    </nav>
+<main class="main"><div class="inner">
+
+  <!-- image slider -->
+  <div class="photo farmer slider" id="slider" role="region" aria-roledescription="carousel" aria-label="Paddy field photos">
+    <img class="slide is-active" src="assets/images/slide1.jpg" alt="A farmer checking rice plants">
+    <img class="slide" src="assets/images/slide2.jpg" alt="A paddy field at sunrise">
+    <img class="slide" src="assets/images/slide3.jpg" alt="Close-up of a rice leaf">
+    <button type="button" class="s-btn prev" aria-label="Previous photo">&#8249;</button>
+    <button type="button" class="s-btn next" aria-label="Next photo">&#8250;</button>
+    <div class="dots"></div>
   </div>
-</header>
 
-<main>
+  <section class="about">
+    <h2>Built to help farmers act early</h2>
+    <p>Rice diseases such as blast and brown spot can reduce a harvest quickly, and they are easy to confuse with each other. Many farmers don't have an expert nearby when they need one.</p>
+    <p>Paddy Check gives a fast first opinion from a phone photo: the likely disease, the affected area, and similar cases, so treatment can start sooner.</p>
+    <a class="btn" href="pages/classify.html">Classify a leaf</a>
+  </section>
 
-  <section class="hero">
-    <div class="wrap hero-inner">
-      <div>
-        <h1>Read the field before it reads back.</h1>
-        <p>Photograph one leaf. We confirm it's paddy, then screen it against four outcomes — fungal, viral, bacterial or normal — with a confidence score, in seconds.</p>
-        <a href="pages/classify.html" class="cta">Classify a leaf</a>
-      </div>
-      <svg class="terraces" viewBox="0 0 360 260" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <path d="M0 230 Q 90 210 180 230 T 360 230" fill="none" stroke="var(--line)" stroke-width="2"/>
-        <path d="M0 190 Q 90 170 180 190 T 360 190" fill="none" stroke="var(--line)" stroke-width="2"/>
-        <path d="M0 150 Q 90 130 180 150 T 360 150" fill="none" stroke="var(--line)" stroke-width="2"/>
-        <g stroke="var(--primary)" stroke-width="3" stroke-linecap="round" fill="none">
-          <path d="M60 230 C 55 190 70 150 58 100"/>
-          <path d="M58 160 C 30 155 20 130 26 108"/>
-          <path d="M60 140 C 92 132 100 105 90 82"/>
-        </g>
-        <g stroke="var(--water)" stroke-width="3" stroke-linecap="round" fill="none">
-          <path d="M150 230 C 144 180 160 140 146 70"/>
-          <path d="M148 170 C 118 165 108 138 116 114"/>
-          <path d="M150 130 C 184 120 194 90 182 64"/>
-        </g>
-        <g stroke="var(--accent)" stroke-width="3" stroke-linecap="round" fill="none">
-          <path d="M250 230 C 244 185 262 150 246 90"/>
-          <path d="M248 175 C 220 168 210 142 218 120"/>
-          <ellipse cx="252" cy="86" rx="6" ry="12" fill="var(--accent)" stroke="none" transform="rotate(-18 252 86)"/>
-          <ellipse cx="234" cy="98" rx="5" ry="10" fill="var(--accent)" stroke="none" transform="rotate(-32 234 98)"/>
-        </g>
-      </svg>
+  <!-- boxplot + heatmap cards -->
+  <section class="evidence">
+    <h2>How well does it work?</h2>
+    <p class="evidence-lead">These charts show how the model performed when we tested it. Tap a chart to see it larger.</p>
+    <div class="evidence-grid">
+      <figure class="chart-card">
+        <button type="button" class="chart-open" data-full="assets/images/boxplot2.png" data-alt="Boxplot of model results by disease">
+          <span class="chart-img"><img src="assets/images/boxplot2.png" alt="Boxplot of model results by disease" loading="lazy" onerror="this.remove()"></span>
+        </button>
+        <figcaption>
+          <h3>Boxplot</h3>
+          <p>Replace with one or two plain sentences: what the boxes show and what a good result looks like.</p>
+        </figcaption>
+      </figure>
+      <figure class="chart-card">
+        <button type="button" class="chart-open" data-full="assets/images/heatmap2.png" data-alt="Heatmap of model results">
+          <span class="chart-img"><img src="assets/images/heatmap2.png" alt="Heatmap of model results" loading="lazy" onerror="this.remove()"></span>
+        </button>
+        <figcaption>
+          <h3>Heatmap</h3>
+          <p>Replace with one or two plain sentences: for example, darker squares mean the model is right more often.</p>
+        </figcaption>
+      </figure>
     </div>
   </section>
 
-  <section class="band">
-    <div class="wrap">
-      <h2>How a photo becomes an answer</h2>
-      <div class="row-flow">
-        <div><div class="num">1</div><h3>Upload</h3><p>One leaf, filling most of the frame, in daylight.</p></div>
-        <div><div class="num">2</div><h3>Confirm</h3><p>We check the photo is paddy before reading anything else into it.</p></div>
-        <div><div class="num">3</div><h3>Classify</h3><p>The leaf is scored against four outcomes, with a confidence reading.</p></div>
-      </div>
-    </div>
+  <section class="features">
+    <div><h3>Names the disease</h3><p>A trained model recognises common paddy leaf diseases.</p></div>
+    <div><h3>Shows where it is</h3><p>A heatmap and boxes mark the affected area.</p></div>
+    <div><h3>Compares real cases</h3><p>See similar leaves from a reference gallery.</p></div>
   </section>
 
-  <section class="band">
-    <div class="wrap">
-      <h2>What we screen for</h2>
-      <p>Four outcomes cover most of what shows up on a paddy leaf.</p>
-      <div class="class-strip">
-        <span class="class-chip"><span class="dot fungal"></span>Fungal</span>
-        <span class="class-chip"><span class="dot viral"></span>Viral</span>
-        <span class="class-chip"><span class="dot bacterial"></span>Bacterial</span>
-        <span class="class-chip"><span class="dot normal"></span>Normal</span>
-      </div>
-    </div>
-  </section>
+  <p class="note">Results are a guide. Confirm with a local agriculture officer before treating.</p>
+</div></main>
+</div>
 
-</main>
+<!-- enlarged chart viewer -->
+<dialog class="lightbox" id="lightbox" aria-label="Enlarged chart">
+  <button type="button" class="lb-close" aria-label="Close">&times;</button>
+  <img id="lbImg" alt="">
+</dialog>
 
-<footer class="site-footer">
-  <div class="wrap">
-    <p>Paddy Check — a student project for paddy leaf screening.</p>
-  </div>
-</footer>
+<script>
+/* slider */
+(function(){
+  var box=document.getElementById('slider');
+  var slides=[].slice.call(box.querySelectorAll('.slide'));
+  if(slides.length<2){box.classList.add('single');return;}
+  var dots=box.querySelector('.dots'),i=0,timer=null,startX=0;
+  var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  slides.forEach(function(_,n){
+    var b=document.createElement('button');
+    b.type='button';b.setAttribute('aria-label','Go to photo '+(n+1));
+    b.onclick=function(){go(n);};
+    dots.appendChild(b);
+  });
+  function go(n){
+    i=(n+slides.length)%slides.length;
+    slides.forEach(function(s,k){s.classList.toggle('is-active',k===i);});
+    [].forEach.call(dots.children,function(d,k){d.setAttribute('aria-current',k===i);});
+  }
+  function play(){if(!reduce){stop();timer=setInterval(function(){go(i+1);},5000);}}
+  function stop(){clearInterval(timer);}
+  box.querySelector('.prev').onclick=function(){go(i-1);};
+  box.querySelector('.next').onclick=function(){go(i+1);};
+  box.addEventListener('mouseenter',stop);box.addEventListener('mouseleave',play);
+  box.addEventListener('focusin',stop);box.addEventListener('focusout',play);
+  box.addEventListener('touchstart',function(e){startX=e.touches[0].clientX;},{passive:true});
+  box.addEventListener('touchend',function(e){
+    var dx=e.changedTouches[0].clientX-startX;
+    if(Math.abs(dx)>40){go(dx<0?i+1:i-1);}
+  });
+  go(0);play();
+})();
 
-<script src="js/main.js"></script>
-</body>
-</html>
+/* chart viewer */
+(function(){
+  var dlg=document.getElementById('lightbox'),img=document.getElementById('lbImg');
+  document.querySelectorAll('.chart-open').forEach(function(b){
+    b.addEventListener('click',function(){
+      img.src=b.dataset.full;img.alt=b.dataset.alt||'';
+      dlg.showModal();
+    });
+  });
+  dlg.querySelector('.lb-close').addEventListener('click',function(){dlg.close();});
+  dlg.addEventListener('click',function(e){if(e.target===dlg)dlg.close();});
+})();
+</script>
+</body></html>
