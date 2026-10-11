@@ -1,48 +1,53 @@
 <!DOCTYPE html>
-<html lang="en"><head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Classify a leaf – Paddy Check</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Sora:wght@600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../css/style.css?v=9">
-<link rel="stylesheet" href="../css/classify.css?v=9">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=Hind+Siliguri:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/site.css?v=2">
+<link rel="stylesheet" href="../css/classify.css?v=10">
 </head><body>
-<div class="shell">
-<aside class="panel">
+<div class="wrap">
+<header class="nav">
   <a class="brand" href="../index.html"><svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><path d="M16 29V14M16 14C16 7 11 4 5 4c0 7 4 10 11 10zM16 18c0-6 4-9 11-9 0 7-4 10-11 10z" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> Paddy Check</a>
-  <nav class="links"><a href="../index.html">Home</a><a class="on" href="classify.html">Classify</a><span class="pill" id="status">Checking server…</span></nav>
-  <p class="panel-title">Check your rice leaf in seconds</p>
-  <ol class="steps"><li><span><b>Take a photo</b>One leaf, in daylight, close up.</span></li><li><span><b>Upload it</b>Add the photo on the Classify page.</span></li><li><span><b>Read the result</b>Disease, affected area and similar cases.</span></li></ol>
-  <div class="photo"><img src="../assets/images/paddy.jpg" alt="Paddy field" onerror="this.remove()"></div>
-</aside>
-<main class="main"><div class="inner">
-  <section class="head">
-    <h1>Classify a leaf</h1>
-    <p>Upload a clear photo of a single paddy leaf to find out what disease it may have.</p>
-  </section>
+  <nav class="links"><a href="../index.html">Home</a><a href="viral.html">Viral</a><a href="bacterial.html">Bacterial</a><a href="fungal.html">Fungal</a><a href="normal.html">Normal</a><a class="on" href="classify.html">Classify</a></nav>
+  <span class="pill" id="status">Checking server…</span>
+</header>
 
-  <section class="card">
+<section class="chead">
+  <div class="label">Classify</div>
+  <h1>Classify a leaf</h1>
+  <p class="lead">Upload one clear photo of a single paddy leaf and see what disease it may have.</p>
+</section>
+
+<div class="cgrid">
+  <section class="ucard">
     <div class="dropzone" id="dropzone">
       <div id="dropzoneContent">
         <strong>Drop a leaf photo here</strong>
         <span>JPG or PNG</span>
-        <button type="button" class="btn ghost sm" id="browseBtn">Choose a photo</button>
+        <button type="button" class="btn out sm" id="browseBtn">Choose a photo</button>
       </div>
       <img id="previewImg" alt="Selected leaf preview" hidden>
       <input type="file" id="fileInput" accept="image/*" hidden>
     </div>
     <button class="btn" id="analyzeBtn" disabled>Analyze photo</button>
-    <button class="btn reset" id="resetBtn" hidden>Check another photo</button>
+    <button class="btn out reset" id="resetBtn" hidden>Check another photo</button>
     <p class="error" id="errorMessage" role="alert" hidden></p>
-    <p class="tip">Tip: use daylight and fill the frame with the leaf.</p>
+    <ol class="tips">
+      <li><span class="n">1</span>Use daylight, not flash.</li>
+      <li><span class="n">2</span>Fill the frame with one leaf.</li>
+      <li><span class="n">3</span>Keep the photo sharp, not blurry.</li>
+    </ol>
   </section>
 
-  <section class="card" aria-live="polite">
+  <section class="rcard" aria-live="polite">
     <div class="result-placeholder" id="resultPlaceholder"><p>Your result will appear here.</p></div>
     <div id="resultCard" hidden></div>
   </section>
-  <p class="note">Results are a guide. Confirm with a local agriculture officer before treating.</p>
+</div>
 
-</div></main>
+<p class="note">This is only a guide. Please show the leaf to a local agriculture officer before you spray anything.</p>
+<footer class="foot"><div class="row"><a class="brand" href="../index.html">Paddy Check</a><nav><a href="viral.html">Viral</a><a href="bacterial.html">Bacterial</a><a href="fungal.html">Fungal</a><a href="normal.html">Normal</a></nav></div></footer>
 </div>
 <script src="../js/classify.js?v=9"></script>
 </body></html>
