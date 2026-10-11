@@ -17,8 +17,8 @@
 
   const CW = 1000, CH = 1356;
   const PH = { cx: 510, cy: 350, w: 900, h: 800 };
-  const GRAIN_COLORS = ['#a2670f', '#b47d26', '#cb9a24', '#d5a23d', '#deab5a', '#e9c46a', '#f1d68a', '#d9a23a'];
-  const GREEN_COLORS = ['#2f7d32', '#3f9142', '#5aa845', '#1f6b3a', '#4c9a3c'];
+  const GRAIN_COLORS = ['#2f9e6b', '#3fb27c', '#5cc392', '#8fd8b4', '#27885c', '#4fba85', '#b4e6cb', '#35a771'];
+  const GREEN_COLORS = ['#0b5d3f', '#116b49', '#1a7a55', '#0e5a46', '#15664a'];
   const CENTER = [47.8 / 100 * CW, 47.6 / 100 * CH];
 
   const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -34,6 +34,33 @@
   // resolves null (not hangs) if an image is missing
   const load = src => new Promise(res => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; });
   const ease = t => t * t * (3 - 2 * t);
+  // one colour + one pattern per division (same order as the chips)
+  const THEMES = [
+    { bg: '#0f7a55', fg: 'rgba(255,255,255,.35)', p: 'dots' },
+    { bg: '#0b5c73', fg: 'rgba(255,255,255,.35)', p: 'waves' },
+    { bg: '#d6364d', fg: 'rgba(255,255,255,.38)', p: 'diamond' },
+    { bg: '#1a9c7a', fg: 'rgba(255,255,255,.38)', p: 'stripes' },
+    { bg: '#2d6a4f', fg: 'rgba(255,255,255,.30)', p: 'grid' },
+    { bg: '#52b788', fg: 'rgba(255,255,255,.55)', p: 'cross' },
+    { bg: '#3a7d6c', fg: 'rgba(255,255,255,.35)', p: 'rings' },
+    { bg: '#06402f', fg: 'rgba(255,255,255,.28)', p: 'scales' }
+  ];
+  function patternTile(th) {
+    const s = 32, c = mk(s, s), x = c.getContext('2d');
+    x.strokeStyle = x.fillStyle = th.fg; x.lineWidth = 2.2; x.lineCap = 'round';
+    x.beginPath();
+    switch (th.p) {
+      case 'dots': x.arc(8, 8, 3, 0, 7); x.fill(); x.beginPath(); x.arc(24, 24, 3, 0, 7); x.fill(); break;
+      case 'stripes': x.moveTo(0, 16); x.lineTo(16, 0); x.moveTo(0, 32); x.lineTo(32, 0); x.moveTo(16, 32); x.lineTo(32, 16); x.stroke(); break;
+      case 'waves': x.moveTo(0, 16); x.quadraticCurveTo(8, 6, 16, 16); x.quadraticCurveTo(24, 26, 32, 16); x.stroke(); break;
+      case 'grid': x.moveTo(0, 0); x.lineTo(s, 0); x.moveTo(0, 0); x.lineTo(0, s); x.stroke(); break;
+      case 'cross': x.moveTo(16, 10); x.lineTo(16, 22); x.moveTo(10, 16); x.lineTo(22, 16); x.stroke(); break;
+      case 'rings': x.arc(16, 16, 8, 0, 7); x.stroke(); break;
+      case 'diamond': x.moveTo(16, 4); x.lineTo(28, 16); x.lineTo(16, 28); x.lineTo(4, 16); x.closePath(); x.stroke(); break;
+      default: x.arc(16, 20, 12, Math.PI, 0); x.stroke();
+    }
+    return c;
+  }
 
   let DIVS = [], PHOTOS = null, chips = [], seqReady = false, seqStart = 0;
 
@@ -50,14 +77,14 @@
     const e = html.indexOf('}];', s);
     if (s < 0 || e < 0) throw new Error('DIVS ' + SOURCE + ' e nai');
     const arr = html.slice(s, e + 2).replace(/^const\s+DIVS\s*=\s*/, '');
-    return { mask: grab('MASK_SRC'), shade: grab('SHADE_SRC'), farmer: grab('FARMER_SRC'), divs: JSON.parse(arr) };
+    return { mask: grab('MASK_SRC'), shade: grab('SHADE_SRC'), divs: JSON.parse(arr) };
   }
 
   function buildChips() {
     chipBox.innerHTML = '';
     chips = DIVS.map((d, i) => {
       const b = document.createElement('button');
-      b.className = 'chip'; b.type = 'button';
+      b.className = 'chip'; b.type = 'button'; b.style.setProperty('--c', THEMES[i % THEMES.length].bg);
       b.innerHTML = '<b>' + d.name + '</b><small>' + d.bn + '</small>';
       b.addEventListener('click', () => { if (seqReady) seqStart = performance.now() - i * PERIOD; });
       chipBox.appendChild(b);
@@ -68,14 +95,11 @@
   getData().then(async d => {
     DIVS = d.divs;
     buildChips();
-    const photoImgs = (await Promise.all(PHOTO_PATHS.map(load))).filter(Boolean);
-    PHOTOS = photoImgs.length ? photoImgs : null;   // fall back to the photo inside the old page
-    const [maskImg, shadeImg, farmerImg, divImgs] = await Promise.all([
+    const [maskImg, shadeImg, divImgs] = await Promise.all([
       load(d.mask), load(d.shade),
-      PHOTOS ? Promise.resolve(photoImgs) : load(d.farmer),
       Promise.all(DIVS.map(x => load('data:image/png;base64,' + x.mask)))
     ]);
-    run(maskImg, shadeImg, farmerImg, divImgs);
+    run(maskImg, shadeImg, null, divImgs);
   }).catch(err => {
     console.error('map.js:', err);
     chipBox.innerHTML = '<p style="color:#8f2429;font-size:.85rem;text-align:center">Map load hoy nai: ' + err.message + '</p>';
@@ -109,8 +133,8 @@
       g.fillStyle = color; g.fillRect(0, 0, CW, CH);
       return c;
     };
-    const baseC = tint('#8a6a1c');
-    const edgeC = tint('#2e5a1e');
+    const baseC = tint('#1f7a55');
+    const edgeC = tint('#043d2a');
     const outline = mk(CW, CH), og = outline.getContext('2d');
     for (let k = 0; k < 18; k++) {
       const a = k / 18 * Math.PI * 2;
@@ -129,25 +153,9 @@
       rx.putImageData(rd, 0, 0);
 
       const L = mk(CW, CH), g = L.getContext('2d');
-      const bw = d.bx1 - d.bx0, bh = d.by1 - d.by0;
-      g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
-      if (PHOTOS) {
-        // each division gets its own photo (cycled), cover-fitted to the division, face area kept near the top
-        const img = farmerImg[i % farmerImg.length];
-        const sc2 = Math.max(bw / img.width, bh / img.height) * 1.08;
-        const w = img.width * sc2, h = img.height * sc2;
-        let x = (d.bx0 + d.bx1) / 2 - w / 2;
-        let y = d.by0 + bh * 0.42 - h * 0.35;
-        x = Math.min(d.bx0, Math.max(d.bx1 - w, x));
-        y = Math.min(d.by0, Math.max(d.by1 - h, y));
-        g.drawImage(img, x, y, w, h);
-      } else {
-        const s = Math.max(bw / PH.w, bh / PH.h) * 1.2, bcx = (d.bx0 + d.bx1) / 2, bcy = (d.by0 + d.by1) / 2, D = 16;
-        const small = mk(Math.ceil(CW / D), Math.ceil(CH / D)), sg = small.getContext('2d');
-        sg.drawImage(farmerImg, (bcx - PH.w * s / 2) / D, (bcy - PH.h * s / 2) / D, PH.w * s / D, PH.h * s / D);
-        g.drawImage(small, 0, 0, CW, CH);
-        g.drawImage(farmerImg, d.fx - PH.cx * d.k, d.fy - PH.cy * d.k, PH.w * d.k, PH.h * d.k);
-      }
+      const th = THEMES[i % THEMES.length];
+      g.fillStyle = th.bg; g.fillRect(0, 0, CW, CH);
+      g.fillStyle = g.createPattern(patternTile(th), 'repeat'); g.fillRect(0, 0, CW, CH);
       g.globalCompositeOperation = 'destination-in';
       g.drawImage(rc, 0, 0);
       layers[i] = L;
@@ -181,11 +189,11 @@
       ig.save(); ig.translate(it.x, it.y); ig.rotate(it.a);
       ig.beginPath(); ig.ellipse(0, 0, it.len / 2, it.wid / 2, 0, 0, Math.PI * 2);
       ig.fillStyle = it.col; ig.fill();
-      ig.lineWidth = 1.4; ig.strokeStyle = 'rgba(110,68,8,.55)'; ig.stroke();
+      ig.lineWidth = 1.4; ig.strokeStyle = 'rgba(4,61,42,.35)'; ig.stroke();
       ig.beginPath(); ig.moveTo(-it.len * .28, -it.wid * .12); ig.lineTo(it.len * .2, -it.wid * .12);
-      ig.strokeStyle = 'rgba(255,248,205,.7)'; ig.lineWidth = 1.2; ig.stroke();
+      ig.strokeStyle = 'rgba(255,255,255,.55)'; ig.lineWidth = 1.2; ig.stroke();
       ig.beginPath(); ig.moveTo(it.len / 2, 0); ig.lineTo(it.len / 2 + 4.4, -1.2);
-      ig.strokeStyle = 'rgba(150,100,20,.7)'; ig.lineWidth = 1; ig.stroke();
+      ig.strokeStyle = 'rgba(4,61,42,.5)'; ig.lineWidth = 1; ig.stroke();
       ig.restore();
     }
     function plant(it) {
@@ -200,9 +208,9 @@
       ig.beginPath(); ig.moveTo(x, y);
       ig.quadraticCurveTo(x + lean * .2, y - h * .6, x + lean, y - h); ig.stroke();
       const tx = x + lean, ty = y - h;
-      ig.strokeStyle = '#d9a23a'; ig.lineWidth = 2.2;
+      ig.strokeStyle = '#e8566a'; ig.lineWidth = 2.2;
       ig.beginPath(); ig.moveTo(tx, ty); ig.quadraticCurveTo(tx + 8, ty - 4, tx + 12, ty + 10); ig.stroke();
-      ig.fillStyle = '#f2cd68';
+      ig.fillStyle = '#f7828f';
       for (let i = 0; i < 4; i++) {
         const t = i / 3;
         ig.beginPath();
@@ -237,7 +245,7 @@
         if (t < FADE) a = ease(t / FADE);
         else if (t > PERIOD - FADE) a = ease((PERIOD - t) / FADE);
       }
-      ctx.globalAlpha = a;
+      ctx.globalAlpha = a * 0.92;
       ctx.drawImage(layerFor(i), 0, 0);
       ctx.globalAlpha = 1;
       if (i !== shown) {
