@@ -7,6 +7,13 @@
 //   "disease": "leaf_blast",        // machine key, or null/"normal" when healthy
 //   "disease_label": "Leaf blast",  // human-readable label, or null when healthy/not paddy
 //   "disease_confidence": 0.89,     // 0-1, or null when healthy/not paddy
+//   "sub_class": { "key": "tungro", "label": "Tungro", "confidence": 0.91, "group": "viral",
+//                  "group_label": "Viral infection", "top3": [...], "model_votes": {...} },
+//   "final": { "source": "both" | "sub" | "main", "label": "Tungro", "group": "viral", ... },
+//   "consistency": { "status": "match" | "mismatch" | "other", "winner": "both"|"sub"|"main", "main_group": "viral",
+//                    "sub_group": "viral", "message": "..." },
+//   "localization": { "heatmap_overlay_base64", "lesion_mask_base64", "annotated_image_base64",
+//                     "spots": [...], "total_damage_pct": 12.3, "tuned_params": {...} },
 //   "similar_images": [             // top-5 nearest images by feature-vector similarity
 //     { "image_url": "/static/reference/blast_014.jpg", "label": "blast", "similarity": 0.93 },
 //     ...
@@ -139,6 +146,14 @@ analyzeBtn.addEventListener('click', async () => {
 
 // ---------- result rendering ----------
 
+const GROUP_LABELS = {
+  bacterial: 'Bacterial infection',
+  fungal: 'Fungal infection',
+  viral: 'Viral infection',
+  normal: 'Healthy',
+  other: 'Other / unlisted condition',
+};
+
 function renderResult(data) {
   resultPlaceholder.hidden = true;
   resultCard.hidden = false;
@@ -154,6 +169,12 @@ function renderResult(data) {
     return;
   }
 
+  const sub = data.sub_class || null;
+  const check = data.consistency || null;
+  const final = data.final || null;
+  const mainGroup = check ? check.main_group : data.disease;
+  const mainLabel = data.disease_label || GROUP_LABELS[mainGroup] || 'Unknown';
+
   const isHealthy = !data.disease || data.disease === 'normal' || data.disease === 'healthy';
 
   if (isHealthy) {
@@ -163,42 +184,100 @@ function renderResult(data) {
       <h3>No disease detected</h3>
       <p class="result-note">The leaf looks healthy based on this photo.</p>
       ${confidenceRow('Paddy', data.paddy_confidence)}
+      ${confidenceRow('Healthy', data.disease_confidence)}
       ${similarSection(data.similar_images)}
     `;
     return;
   }
 
-  const diseaseLabel = data.disease_label || data.disease;
+  // ---- Diseased. If the two models disagree, the more confident one is shown
+  //      (data.final) together with the mismatch message. ----
+  const disagree = !!(check && check.status !== 'match');
+  const headline = final ? final.label : (sub ? sub.label : mainLabel);
+  const showGroupLine = final && final.source !== 'main' && final.group_label !== final.label
+    && final.group !== 'other';
+  const groupLine = showGroupLine
+    ? `<p class="result-group">${escapeHtml(final.group_label)}</p>` : '';
+  const isUnlisted = !!(final && final.group === 'other');
+
+  const badges = [
+    '<span class="result-status is-paddy">Paddy confirmed</span>',
+    isUnlisted
+      ? '<span class="result-status is-mismatch">Unlisted condition</span>'
+      : '<span class="result-status is-diseased">Disease found</span>',
+    disagree ? '<span class="result-status is-mismatch">Models disagree</span>' : '',
+  ].join('');
+
+  const note = disagree
+    ? escapeHtml(check.message)
+    : 'This is a model estimate — confirm with an expert before treating your crop.';
+
+  const subRowLabel = sub
+    ? (sub.group === 'other' ? 'Disease: unlisted condition' : `Disease: ${escapeHtml(sub.label)}`)
+    : '';
 
   resultCard.innerHTML = `
-    <span class="result-status is-paddy">Paddy confirmed</span>
-    <span class="result-status is-diseased">Disease found</span>
-    <h3>${escapeHtml(diseaseLabel)}</h3>
-    <p class="result-note">This is a model estimate — confirm with an expert before treating your crop.</p>
+    ${badges}
+    <h3>${escapeHtml(headline)}</h3>
+    ${groupLine}
+    <p class="result-note">${note}</p>
     ${confidenceRow('Paddy', data.paddy_confidence)}
-    ${confidenceRow(escapeHtml(diseaseLabel), data.disease_confidence)}
+    ${confidenceRow(`Pathogen type: ${escapeHtml(mainLabel)}`, data.disease_confidence)}
+    ${sub ? confidenceRow(subRowLabel, sub.confidence) : ''}
+    ${final && final.source !== 'main' ? topCandidates(sub) : ''}
     ${localizationSection(data.localization)}
     ${similarSection(data.similar_images)}
+  `;
+}
+
+function topCandidates(sub) {
+  if (!sub || !sub.top3 || sub.top3.length < 2) return '';
+  const items = sub.top3
+    .map((c) => `<li>${escapeHtml(c.label)} <span>${Math.round(c.confidence * 100)}%</span></li>`)
+    .join('');
+  return `
+    <div class="top-candidates">
+      <h4>Other possibilities</h4>
+      <ul>${items}</ul>
+    </div>
   `;
 }
 
 function localizationSection(localization) {
   if (!localization || !localization.heatmap_overlay_base64) return '';
 
-  const spotCount = (localization.spots || []).length;
+  const spots = localization.spots || [];
+  const spotCount = spots.length;
   const countText = spotCount === 1 ? '1 spot detected' : `${spotCount} spots detected`;
-  const heatmapSrc = `data:image/png;base64,${localization.heatmap_overlay_base64}`;
-  const boxedSrc = localization.annotated_image_base64
-    ? `data:image/png;base64,${localization.annotated_image_base64}` : '';
+  const damage = typeof localization.total_damage_pct === 'number'
+    ? ` · about ${localization.total_damage_pct.toFixed(1)}% of the photo affected` : '';
 
-  // Heatmap and boxes are shown together, side by side - no toggle.
+  const fig = (b64, alt, caption) => b64
+    ? `<figure><img src="data:image/png;base64,${b64}" alt="${alt}"><figcaption>${caption}</figcaption></figure>`
+    : '';
+
+  // Grad-CAM heatmap -> grid-tuned lesion mask -> OpenCV boxes, side by side.
+  const spotRows = spots.slice(0, 6).map((s) => `
+    <tr>
+      <td>#${s.spot_id}</td>
+      <td>${s.area_ratio_pct}%</td>
+      <td>${s.necrosis_intensity}</td>
+      <td>${s.elongation}</td>
+    </tr>`).join('');
+
   return `
     <div class="localization-section">
-      <h4>Where the problem is (${countText})</h4>
-      <div class="localization-pair">
-        <figure><img src="${heatmapSrc}" alt="Heatmap of the affected area"><figcaption>Heatmap</figcaption></figure>
-        ${boxedSrc ? `<figure><img src="${boxedSrc}" alt="Affected spots marked with boxes"><figcaption>Boxes</figcaption></figure>` : ''}
+      <h4>Where the problem is (${countText}${damage})</h4>
+      <div class="localization-pair three">
+        ${fig(localization.heatmap_overlay_base64, 'Heatmap of the affected area', 'Heatmap')}
+        ${fig(localization.lesion_mask_base64, 'Lesion mask', 'Lesion mask')}
+        ${fig(localization.annotated_image_base64, 'Affected spots marked with boxes', 'Boxes')}
       </div>
+      ${spotRows ? `
+      <table class="spot-table">
+        <thead><tr><th>Spot</th><th>Area</th><th>Darkness</th><th>Elongation</th></tr></thead>
+        <tbody>${spotRows}</tbody>
+      </table>` : ''}
     </div>
   `;
 }

@@ -1,4 +1,14 @@
-from typing import List, Optional
+"""
+Response model for POST /predict.
+
+REPLACES Backend/schemas/predict.py. FastAPI's response_model drops any field
+that is not declared here, so the new sub_class / consistency fields must be
+listed or they never reach the frontend. Field names for the existing
+keys are unchanged.
+"""
+
+from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel
 
 
@@ -8,26 +18,37 @@ class SimilarImage(BaseModel):
     similarity: float
 
 
-class SpotBox(BaseModel):
-    x: int
-    y: int
-    w: int
-    h: int
+class SubClassCandidate(BaseModel):
+    key: str
+    label: str
+    confidence: float
 
 
-class Spot(BaseModel):
-    spot_id: int
-    area_ratio_pct: float
-    perimeter_to_area: float
-    necrosis_intensity: float
-    elongation: float
-    box: SpotBox
+class SubClassResult(BaseModel):
+    key: str                      # e.g. "tungro"
+    label: str                    # e.g. "Tungro"
+    confidence: float
+    group: str                    # bacterial | fungal | viral | normal | other
+    group_label: str
+    top3: List[SubClassCandidate]
+    model_votes: Dict[str, str]   # per-model argmax, e.g. {"resnet50": "tungro", ...}
 
 
-class Localization(BaseModel):
-    annotated_image_base64: str  # boxed spots, PNG (no data: URI prefix)
-    heatmap_overlay_base64: str  # continuous attention heatmap, PNG (no data: URI prefix)
-    spots: List[Spot]
+class FinalResult(BaseModel):
+    source: str                   # "both" (agree) | "sub" | "main" (higher confidence wins)
+    key: str
+    label: str
+    group: str
+    group_label: str
+    confidence: float
+
+
+class Consistency(BaseModel):
+    status: str                   # "match" | "mismatch" | "other"
+    winner: str                   # "both" | "sub" | "main"
+    main_group: str               # pathogen model (4-class)
+    sub_group: str                # sub-class model, mapped to its broad group
+    message: str
 
 
 class PredictionResponse(BaseModel):
@@ -36,37 +57,10 @@ class PredictionResponse(BaseModel):
     disease: Optional[str] = None
     disease_label: Optional[str] = None
     disease_confidence: Optional[float] = None
+    sub_class: Optional[SubClassResult] = None
+    consistency: Optional[Consistency] = None
+    final: Optional[FinalResult] = None
     similar_images: List[SimilarImage] = []
-    localization: Optional[Localization] = None
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "is_paddy": True,
-                "paddy_confidence": 0.97,
-                "disease": "viral",
-                "disease_label": "Viral infection",
-                "disease_confidence": 0.596,
-                "similar_images": [
-                    {
-                        "image_url": "/static/reference/viral_014.jpg",
-                        "label": "viral",
-                        "similarity": 0.93,
-                    }
-                ],
-                "localization": {
-                    "annotated_image_base64": "iVBORw0KGgoAAAANSUhEUgAA...",
-                    "heatmap_overlay_base64": "iVBORw0KGgoAAAANSUhEUgAA...",
-                    "spots": [
-                        {
-                            "spot_id": 1,
-                            "area_ratio_pct": 4.2,
-                            "perimeter_to_area": 0.11,
-                            "necrosis_intensity": 132.5,
-                            "elongation": 3.1,
-                            "box": {"x": 40, "y": 90, "w": 60, "h": 20},
-                        }
-                    ],
-                },
-            }
-        }
+    # annotated_image_base64, heatmap_overlay_base64, lesion_mask_base64,
+    # spots, total_damage_pct, tuned_params
+    localization: Optional[Dict[str, Any]] = None

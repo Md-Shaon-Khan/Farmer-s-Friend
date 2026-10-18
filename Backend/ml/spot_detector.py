@@ -1,492 +1,227 @@
 """
 "Where's the problem" localization for a diagnosed leaf.
 
-Uses Grad-CAM on the ConvNeXt disease classifier.
+Ported from the notebook cell "Lesion Localization using OpenCV, Grad-CAM,
+and Grid-Tuned Extraction" (Fine_Tuning_Paddy_Sub_Class.ipynb):
 
-How it works:
-  1. The exact same transformed tensor used by the classifier is
-     passed through the model.
-  2. Grad-CAM calculates which spatial regions contributed to the
-     predicted disease class.
-  3. The heatmap is thresholded to identify high-attention regions.
-  4. Contours are extracted from that mask.
-  5. Bounding boxes and spot statistics are generated.
+  1. Grad-CAM on one member of the sub-class ensemble, for the PREDICTED
+     sub-class  ->  attention map in [0, 1].
+  2. Grid search over (heatmap threshold x minimum contour area) picks the
+     best lesion-mask setting for THIS image
+        thresh   in {0.35, 0.45, 0.55}
+        min_area in {30, 50, 80}
+     score = n_lesions / (|total_damage% - 15| + 1), valid only when
+     0.5% <= total_damage <= 60%; fallback (0.45, 50).
+  3. OpenCV: threshold -> morphological close -> contours -> boxes + per-spot
+     metrics (area %, perimeter/area, necrosis intensity, elongation).
 
-This is attention-based localization, NOT object detection.
-There is no YOLO or separately trained detection model.
+Added for field photos: an Excess-Green (ExG = 2G - R - B) plant mask that
+removes soil / mud / water from the lesion mask (skipped automatically when
+it would remove almost everything).
 
-Important:
-The visualization image is reconstructed from the exact transformed
-tensor given to the model. This keeps Grad-CAM coordinates aligned with
-the displayed image even when the transform performs resizing,
-center-cropping, normalization, etc.
+This is attention-based localization, NOT object detection (no YOLO).
+
+The picture shown to the user is rebuilt from the exact tensor given to the
+model, so Grad-CAM coordinates and boxes line up with the displayed image.
 """
 
 import base64
 import io
+from itertools import product
 
 import cv2
 import numpy as np
 import torch
 from PIL import Image
 
+GRID_THRESHOLDS = (0.35, 0.45, 0.55)
+GRID_MIN_AREAS = (30, 50, 80)
+FALLBACK_PARAMS = {"thresh": 0.45, "min_area": 50}
+TARGET_DAMAGE_PCT = 15.0
+VALID_DAMAGE_RANGE = (0.5, 60.0)
+EXG_THRESHOLD = 0.04
+MIN_PLANT_FRACTION = 0.05
 
-class ConvNeXtGradCAM:
-    """Grad-CAM implementation for the ConvNeXt classifier."""
 
-    def __init__(self, target_model, target_layer):
-        self.model = target_model
-        self.target_layer = target_layer
-
-        self.gradients = None
+# ---------------------------------------------------------------------
+# Grad-CAM (works for ResNet layer4[-1] and ConvNeXt/EfficientNet features[-1])
+# ---------------------------------------------------------------------
+class GradCAM:
+    def __init__(self, model, target_layer):
+        self.model = model
         self.activations = None
+        self.gradients = None
+        self._handle = target_layer.register_forward_hook(self._on_forward)
 
-        self.hook_f = self.target_layer.register_forward_hook(
-            self.save_activation
-        )
-
-        self.hook_b = self.target_layer.register_full_backward_hook(
-            self.save_gradient
-        )
-
-    def save_activation(self, module, input, output):
+    def _on_forward(self, module, inputs, output):
         self.activations = output.detach()
+        if output.requires_grad:
+            output.register_hook(lambda g: setattr(self, "gradients", g.detach()))
 
-    def save_gradient(self, module, grad_input, grad_output):
-        self.gradients = grad_output[0].detach()
-
-    def __call__(
-        self,
-        x_tensor,
-        target_class,
-        out_size=None,
-    ):
+    def __call__(self, x_tensor, target_class, out_size):
         self.model.zero_grad()
+        with torch.enable_grad():
+            output = self.model(x_tensor)
+            output[0, target_class].backward()
 
-        output = self.model(x_tensor)
+        if self.gradients is None or self.activations is None:
+            return np.zeros((out_size[1], out_size[0]), dtype=np.float32)
 
-        one_hot = torch.zeros_like(output)
-        one_hot[0, target_class] = 1.0
+        grads = self.gradients.cpu().numpy()[0]
+        acts = self.activations.cpu().numpy()[0]
+        weights = grads.mean(axis=(1, 2))
 
-        output.backward(
-            gradient=one_hot,
-            retain_graph=True,
-        )
+        cam = np.maximum((weights[:, None, None] * acts).sum(axis=0), 0).astype(np.float32)
+        cam = cv2.resize(cam, out_size, interpolation=cv2.INTER_LINEAR)
 
-        gradients = self.gradients.detach().cpu().numpy()[0]
-        activations = self.activations.detach().cpu().numpy()[0]
-
-        # Global-average-pool gradients over spatial dimensions.
-        weights = np.mean(
-            gradients,
-            axis=(1, 2),
-        )
-
-        # Weighted combination of feature maps.
-        cam = np.zeros(
-            activations.shape[1:],
-            dtype=np.float32,
-        )
-
-        for i, weight in enumerate(weights):
-            cam += weight * activations[i]
-
-        # Keep only positive influence.
-        cam = np.maximum(cam, 0)
-
-        # Normalize to [0, 1].
-        if cam.max() > 0:
-            cam = cam / cam.max()
-
-        # Resize CAM to the exact visualization image size.
-        if out_size is not None:
-            if isinstance(out_size, tuple):
-                target_width, target_height = out_size
-            else:
-                target_width = out_size
-                target_height = out_size
-
-            cam = cv2.resize(
-                cam,
-                (target_width, target_height),
-                interpolation=cv2.INTER_LINEAR,
-            )
-
+        lo, hi = float(cam.min()), float(cam.max())
+        if hi > lo:
+            cam = (cam - lo) / (hi - lo + 1e-8)
+        else:
+            cam = np.zeros_like(cam)
         return cam
 
     def remove_hooks(self):
-        self.hook_f.remove()
-        self.hook_b.remove()
+        self._handle.remove()
 
 
-def _tensor_to_display_image(
-    tensor: torch.Tensor,
-    mean,
-    std,
-) -> np.ndarray:
-    """
-    Converts the exact normalized model input tensor back into
-    an RGB uint8 image for visualization.
-
-    Input:
-        tensor: [C, H, W]
-
-    Output:
-        RGB uint8 NumPy image: [H, W, 3]
-    """
-
-    image_tensor = tensor.detach().cpu().clone()
-
-    mean_tensor = torch.tensor(
-        mean,
-        dtype=image_tensor.dtype,
-    ).view(3, 1, 1)
-
-    std_tensor = torch.tensor(
-        std,
-        dtype=image_tensor.dtype,
-    ).view(3, 1, 1)
-
-    # Undo ImageNet normalization.
-    image_tensor = (
-        image_tensor * std_tensor
-    ) + mean_tensor
-
-    # Prevent small floating-point errors from producing
-    # values outside the valid image range.
-    image_tensor = image_tensor.clamp(0.0, 1.0)
-
-    # CHW -> HWC.
-    image_np = image_tensor.permute(
-        1,
-        2,
-        0,
-    ).numpy()
-
-    # Float [0, 1] -> uint8 [0, 255].
-    image_np = (
-        image_np * 255.0
-    ).round().astype(np.uint8)
-
-    return image_np
+# ---------------------------------------------------------------------
+# Image helpers
+# ---------------------------------------------------------------------
+def _tensor_to_display_image(tensor, mean, std) -> np.ndarray:
+    t = tensor.detach().cpu().clone()
+    t = t * torch.tensor(std, dtype=t.dtype).view(3, 1, 1) + torch.tensor(mean, dtype=t.dtype).view(3, 1, 1)
+    t = t.clamp(0.0, 1.0).permute(1, 2, 0).numpy()
+    return (t * 255.0).round().astype(np.uint8)
 
 
-def extract_spots_and_features(
-    cam_mask,
-    original_np,
-):
-    """
-    Converts the Grad-CAM heatmap into detected high-attention spots.
+def _heatmap_overlay(cam, original_np):
+    heat = cv2.cvtColor(cv2.applyColorMap(np.uint8(255 * cam), cv2.COLORMAP_JET), cv2.COLOR_BGR2RGB)
+    return cv2.addWeighted(original_np, 0.6, heat, 0.4, 0)
 
-    The coordinates are calculated directly against original_np,
-    which is the exact transformed image shown to the model.
 
-    Returns:
-        spot_metrics
-        annotated_img
-    """
+def _to_base64_png(image_np) -> str:
+    buf = io.BytesIO()
+    Image.fromarray(image_np).save(buf, format="PNG")
+    return base64.b64encode(buf.getvalue()).decode("ascii")
 
-    # Threshold Grad-CAM.
-    mask_binary = (
-        np.uint8(cam_mask > 0.45) * 255
-    )
 
-    # Find connected attention regions.
-    contours, _ = cv2.findContours(
-        mask_binary,
-        cv2.RETR_EXTERNAL,
-        cv2.CHAIN_APPROX_SIMPLE,
-    )
+def _plant_mask(original_np):
+    """ExG foliage mask; None if it covers too little to be trusted."""
+    f = original_np.astype(np.float32) / 255.0
+    exg = 2.0 * f[:, :, 1] - f[:, :, 0] - f[:, :, 2]
+    mask = (exg > EXG_THRESHOLD).astype(np.uint8) * 255
+    if cv2.countNonZero(mask) < MIN_PLANT_FRACTION * mask.size:
+        return None
+    return mask
 
-    annotated_img = original_np.copy()
 
-    spot_metrics = []
+# ---------------------------------------------------------------------
+# OpenCV lesion extraction
+# ---------------------------------------------------------------------
+def extract_leaf_lesions(cam, original_np, thresh=0.45, min_area=40, plant_mask=None, draw=True):
+    """Returns (spots, annotated_img, binary_mask, total_damage_pct)."""
+    binary = (cam > thresh).astype(np.uint8) * 255
+    if plant_mask is not None:
+        binary = cv2.bitwise_and(binary, plant_mask)
+
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
+
+    contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     h_img, w_img, _ = original_np.shape
-    total_img_area = h_img * w_img
+    canvas_area = h_img * w_img
+    annotated = original_np.copy() if draw else None
+    hsv = cv2.cvtColor(original_np, cv2.COLOR_RGB2HSV)
 
-    # Human-readable spot numbering.
-    spot_id = 0
-
+    spots = []
     for cnt in contours:
-
         area = cv2.contourArea(cnt)
-
-        # Ignore tiny attention regions.
-        if area < 80:
+        if area < min_area:
             continue
 
-        spot_id += 1
-
-        perimeter = cv2.arcLength(
-            cnt,
-            True,
-        )
-
-        p_a_ratio = (
-            perimeter / area
-            if area > 0
-            else 0
-        )
-
+        perimeter = cv2.arcLength(cnt, True)
         x, y, w, h = cv2.boundingRect(cnt)
+        area_pct = area / canvas_area * 100
 
-        elongation = (
-            max(w / h, h / w)
-            if min(w, h) > 0
-            else 1.0
+        spot_mask = np.zeros((h_img, w_img), dtype=np.uint8)
+        cv2.drawContours(spot_mask, [cnt], -1, 255, -1)
+        necrosis = 255.0 - cv2.mean(hsv[:, :, 2], mask=spot_mask)[0]  # darker = more necrotic
+        elongation = max(w / (h + 1e-5), h / (w + 1e-5))
+
+        spot_id = len(spots) + 1
+        if draw:
+            cv2.rectangle(annotated, (x, y), (x + w, y + h), (255, 30, 30), 2)
+            cv2.putText(annotated, f"#{spot_id}", (x, max(15, y - 5)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 2)
+
+        spots.append({
+            "spot_id": spot_id,
+            "area_ratio_pct": round(area_pct, 2),
+            "perimeter_to_area": round(perimeter / (area + 1e-5), 3),
+            "necrosis_intensity": round(float(necrosis), 1),
+            "elongation": round(float(elongation), 2),
+            "box": {"x": int(x), "y": int(y), "w": int(w), "h": int(h)},
+        })
+
+    total = sum(s["area_ratio_pct"] for s in spots)
+    return spots, annotated, binary, total
+
+
+def grid_search_segmentation(cam, original_np, plant_mask=None):
+    """Pick the (thresh, min_area) pair that gives the most plausible lesion mask."""
+    best, best_score = None, -1.0
+    for thresh, min_area in product(GRID_THRESHOLDS, GRID_MIN_AREAS):
+        spots, _, _, total = extract_leaf_lesions(
+            cam, original_np, thresh, min_area, plant_mask, draw=False
         )
-
-        # Create a mask for this particular contour.
-        mask_cnt = np.zeros(
-            (h_img, w_img),
-            dtype=np.uint8,
-        )
-
-        cv2.drawContours(
-            mask_cnt,
-            [cnt],
-            -1,
-            255,
-            -1,
-        )
-
-        # Calculate mean RGB intensity in the spot.
-        mean_val = cv2.mean(
-            original_np,
-            mask=mask_cnt,
-        )[:3]
-
-        # Simple darkness / necrosis proxy.
-        necrosis_score = (
-            255 - np.mean(mean_val)
-        )
-
-        # Draw bounding box.
-        cv2.rectangle(
-            annotated_img,
-            (x, y),
-            (x + w, y + h),
-            (255, 0, 0),
-            2,
-        )
-
-        # Draw spot number.
-        text_y = max(
-            y - 5,
-            15,
-        )
-
-        cv2.putText(
-            annotated_img,
-            f"#{spot_id}",
-            (x, text_y),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
-            (255, 0, 0),
-            2,
-        )
-
-        spot_metrics.append(
-            {
-                "spot_id": spot_id,
-                "area_ratio_pct": round(
-                    (area / total_img_area) * 100,
-                    2,
-                ),
-                "perimeter_to_area": round(
-                    p_a_ratio,
-                    3,
-                ),
-                "necrosis_intensity": round(
-                    necrosis_score,
-                    1,
-                ),
-                "elongation": round(
-                    elongation,
-                    2,
-                ),
-                "box": {
-                    "x": int(x),
-                    "y": int(y),
-                    "w": int(w),
-                    "h": int(h),
-                },
-            }
-        )
-
-    return spot_metrics, annotated_img
+        if VALID_DAMAGE_RANGE[0] <= total <= VALID_DAMAGE_RANGE[1] and spots:
+            score = len(spots) / (abs(total - TARGET_DAMAGE_PCT) + 1.0)
+            if score > best_score:
+                best_score, best = score, {"thresh": thresh, "min_area": min_area}
+    return best or dict(FALLBACK_PARAMS)
 
 
-def _heatmap_overlay(
-    cam: np.ndarray,
-    original_np: np.ndarray,
-) -> np.ndarray:
+# ---------------------------------------------------------------------
+# Public entry point (called by ml/pipeline.py)
+# ---------------------------------------------------------------------
+def localize_disease(cam_model, target_layer, image_pil, pred_idx, transform, device, mean, std):
     """
-    Creates a Grad-CAM heatmap overlay using the same image
-    coordinate system as the CAM.
-    """
-
-    heatmap = cv2.applyColorMap(
-        np.uint8(255 * cam),
-        cv2.COLORMAP_JET,
-    )
-
-    heatmap_rgb = cv2.cvtColor(
-        heatmap,
-        cv2.COLOR_BGR2RGB,
-    )
-
-    return cv2.addWeighted(
-        original_np,
-        0.6,
-        heatmap_rgb,
-        0.4,
-        0,
-    )
-
-
-def _np_image_to_base64_png(
-    image_np: np.ndarray,
-) -> str:
-    """
-    Converts an RGB NumPy image to a base64 PNG string.
-    """
-
-    image = Image.fromarray(
-        image_np
-    )
-
-    buffer = io.BytesIO()
-
-    image.save(
-        buffer,
-        format="PNG",
-    )
-
-    return base64.b64encode(
-        buffer.getvalue()
-    ).decode("ascii")
-
-
-def localize_disease(
-    disease_model,
-    image_pil: Image.Image,
-    pred_idx: int,
-    transform,
-    device,
-    mean,
-    std,
-):
-    """
-    Runs Grad-CAM + spot extraction for one leaf photo.
-
-    The SAME transformed tensor is used for:
-
-        image -> transform -> model
-                           -> Grad-CAM
-
-    and:
-
-        image -> transform -> unnormalize -> visualization
-
-    Therefore the Grad-CAM coordinates and displayed image
-    coordinates remain aligned.
+    cam_model / target_layer : ensemble member + layer for Grad-CAM
+    pred_idx                 : index of the predicted SUB-class
 
     Returns:
         {
-            "annotated_image_base64": str,
-            "heatmap_overlay_base64": str,
-            "spots": [...]
+          "annotated_image_base64": boxed lesions,
+          "heatmap_overlay_base64": Grad-CAM overlay,
+          "lesion_mask_base64":     grid-tuned binary lesion mask,
+          "spots": [...],
+          "total_damage_pct": float,
+          "tuned_params": {"thresh": .., "min_area": ..}
         }
     """
+    tensor = transform(image_pil)
+    display_np = _tensor_to_display_image(tensor, mean, std)
+    model_tensor = tensor.unsqueeze(0).to(device).requires_grad_(True)
 
-    # ---------------------------------------------------------
-    # 1. Apply the EXACT classifier transform.
-    # ---------------------------------------------------------
-    transformed_tensor = transform(
-        image_pil
-    )
-
-    # ---------------------------------------------------------
-    # 2. Reconstruct the exact model-view image.
-    #
-    # This replaces the old:
-    #
-    # image_pil.resize((img_size, img_size))
-    #
-    # which caused coordinate mismatch when the transform used
-    # crop/resize operations.
-    # ---------------------------------------------------------
-    display_np = _tensor_to_display_image(
-        transformed_tensor,
-        mean,
-        std,
-    )
-
-    # ---------------------------------------------------------
-    # 3. Prepare model input.
-    # ---------------------------------------------------------
-    model_tensor = (
-        transformed_tensor
-        .unsqueeze(0)
-        .to(device)
-    )
-
-    model_tensor.requires_grad_(True)
-
-    # ---------------------------------------------------------
-    # 4. Create Grad-CAM.
-    # ---------------------------------------------------------
-    gradcam = ConvNeXtGradCAM(
-        disease_model,
-        disease_model.features[-1],
-    )
-
+    cam_engine = GradCAM(cam_model, target_layer)
     try:
-        cam = gradcam(
-            model_tensor,
-            pred_idx,
-            out_size=(
-                display_np.shape[1],
-                display_np.shape[0],
-            ),
-        )
-
+        cam = cam_engine(model_tensor, pred_idx, (display_np.shape[1], display_np.shape[0]))
     finally:
-        gradcam.remove_hooks()
+        cam_engine.remove_hooks()
 
-    # ---------------------------------------------------------
-    # 5. Extract attention spots and draw boxes.
-    # ---------------------------------------------------------
-    spot_metrics, annotated_np = (
-        extract_spots_and_features(
-            cam,
-            display_np,
-        )
+    plant = _plant_mask(display_np)
+    params = grid_search_segmentation(cam, display_np, plant)
+    spots, annotated, mask, total = extract_leaf_lesions(
+        cam, display_np, params["thresh"], params["min_area"], plant
     )
 
-    # ---------------------------------------------------------
-    # 6. Generate heatmap overlay.
-    # ---------------------------------------------------------
-    heatmap_np = _heatmap_overlay(
-        cam,
-        display_np,
-    )
-
-    # ---------------------------------------------------------
-    # 7. Convert images to base64.
-    # ---------------------------------------------------------
     return {
-        "annotated_image_base64": (
-            _np_image_to_base64_png(
-                annotated_np
-            )
-        ),
-        "heatmap_overlay_base64": (
-            _np_image_to_base64_png(
-                heatmap_np
-            )
-        ),
-        "spots": spot_metrics,
+        "annotated_image_base64": _to_base64_png(annotated),
+        "heatmap_overlay_base64": _to_base64_png(_heatmap_overlay(cam, display_np)),
+        "lesion_mask_base64": _to_base64_png(mask),
+        "spots": spots,
+        "total_damage_pct": round(total, 2),
+        "tuned_params": params,
     }

@@ -5,3 +5,6 @@ __pycache__/
 
 # Model weights are not pushed from here. Whoever pushes them removes this line.
 *.pth
+Google Paddy
+Files
+models

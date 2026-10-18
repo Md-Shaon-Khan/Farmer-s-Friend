@@ -46,3 +46,42 @@
 .note{margin-top:30px;font-size:.85rem;color:var(--mut)}
 .foot{margin-top:50px}
 @media(max-width:900px){.cgrid{grid-template-columns:1fr}.ucard{position:static}.localization-pair{grid-template-columns:1fr}.nav .pill{display:none}}
+
+/* ===== ADD TO THE BOTTOM OF css/classify.css ===== */
+
+/* "Results don't match" / "Unlisted condition" badge */
+.result-status.is-mismatch {
+  background: #fff4d6;
+  color: #7a5200;
+  border: 1px solid #f0d58a;
+}
+
+/* Broad group line under the disease name, e.g. "Viral infection" */
+.result-group {
+  margin: -4px 0 10px;
+  font-size: 0.95rem;
+  opacity: 0.75;
+}
+
+/* Three images: heatmap | lesion mask | boxes */
+.localization-pair.three {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.localization-pair.three figure { margin: 0; }
+.localization-pair.three img { width: 100%; height: auto; border-radius: 8px; display: block; }
+.localization-pair.three figcaption { font-size: 0.8rem; text-align: center; margin-top: 4px; opacity: 0.75; }
+@media (max-width: 520px) {
+  .localization-pair.three { grid-template-columns: 1fr; }
+}
+
+/* Per-spot numbers under the images */
+.spot-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; }
+.spot-table th, .spot-table td { text-align: left; padding: 4px 6px; border-bottom: 1px solid rgba(0,0,0,0.08); }
+
+/* "Other possibilities" list */
+.top-candidates { margin-top: 14px; }
+.top-candidates ul { list-style: none; margin: 6px 0 0; padding: 0; font-size: 0.9rem; }
+.top-candidates li { display: flex; justify-content: space-between; padding: 3px 0; }
+.top-candidates li span { opacity: 0.7; }

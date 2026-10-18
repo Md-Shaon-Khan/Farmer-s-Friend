@@ -78,3 +78,57 @@ SIMILARITY_CACHE_PATH = BASE_DIR / "data" / "reference_embeddings.npz"
 # URL prefix the frontend uses to load reference thumbnails — must match
 # the StaticFiles mount in main.py.
 REFERENCE_IMAGE_URL_PREFIX = "/static/reference"
+
+# =====================================================================
+# ADD THIS BLOCK TO THE BOTTOM OF Backend/config.py (before "runtime" is fine)
+# Nothing existing needs to be removed.
+# =====================================================================
+
+# ---------- sub-class ensemble (13 classes, fine-tuned) ----------
+# Source: Fine_Tuning_Paddy_Sub_Class.ipynb. Three fine-tuned checkpoints,
+# soft-voting (mean of softmax). Each checkpoint is a dict:
+#   {"state": state_dict, "classes": [...13...], "size": 384}
+SUBCLASS_DIR = BASE_DIR / "models" / "disease_classify"
+SUBCLASS_MODEL_PATHS = {
+    "convnext_tiny": SUBCLASS_DIR / "ft_convnext_tiny.pt",
+    "efficientnet_b3": SUBCLASS_DIR / "ft_efficientnet_b3.pt",
+    "resnet50": SUBCLASS_DIR / "ft_resnet50.pt",
+}
+
+# Class order MUST match the notebook's TARGET_CLASSES (it is checked
+# against the order stored inside each checkpoint at startup).
+SUBCLASS_CLASSES = [
+    "bacterial_leaf_blight", "bacterial_leaf_streak", "bacterial_panicle_blight",
+    "blast", "brown_spot", "downy_mildew", "false_smut", "leaf_scald",
+    "narrow_brown_spot", "normal", "sheath_blight", "tungro", "other",
+]
+SUBCLASS_IMG_SIZE = 384
+
+# 13 sub-classes -> 5 broad groups. Keys of the 4 pathogen groups are the
+# same as DISEASE_CLASSES so the two models can be compared directly.
+SUBCLASS_TO_GROUP = {
+    "bacterial_leaf_blight": "bacterial",
+    "bacterial_leaf_streak": "bacterial",
+    "bacterial_panicle_blight": "bacterial",
+    "blast": "fungal",
+    "brown_spot": "fungal",
+    "narrow_brown_spot": "fungal",
+    "sheath_blight": "fungal",
+    "leaf_scald": "fungal",
+    "false_smut": "fungal",
+    "downy_mildew": "fungal",
+    "tungro": "viral",
+    "normal": "normal",
+    "other": "other",
+}
+GROUP_LABELS = {
+    "bacterial": "Bacterial infection",
+    "fungal": "Fungal infection",
+    "viral": "Viral infection",
+    "normal": "Healthy",
+    "other": "Other / unlisted condition",
+}
+
+# Which ensemble member Grad-CAM is drawn from (notebook's grid-tuned
+# localization cell used ResNet-50, layer4[-1]; others use features[-1]).
+SUBCLASS_CAM_ARCH = "resnet50"
