@@ -1,14 +1,11 @@
 """
-13-class sub-class ensemble (ConvNeXt-Tiny + EfficientNet-B3 + ResNet-50).
+Sub-class ensemble (ConvNeXt-Tiny + EfficientNet-B3 + ResNet-50).
 
-Mirrors Fine_Tuning_Paddy_Sub_Class.ipynb:
-  * same architectures / classifier heads (so the checkpoints load),
-  * 384x384 resize + ImageNet normalisation,
-  * soft voting = mean of each model's softmax probabilities.
-
-Each of the 13 sub-classes is mapped to a broad group
-(bacterial / fungal / viral / normal / other) via config.SUBCLASS_TO_GROUP,
-so it can be compared with the 4-class pathogen model.
+* Checkpoints have 13-class heads; at inference the classes not in
+  config.SUBCLASS_KEEP_CLASSES are summed into "other".
+* Soft voting = mean of the models' softmax probabilities.
+* Healthy vs diseased uses config.HEALTHY_THRESHOLD on the averaged
+  "normal" probability (not plain argmax).
 """
 
 import numpy as np
@@ -21,7 +18,6 @@ from utils.image_utils import bytes_to_pil_image, build_transform
 
 
 def _build_model(arch: str, num_classes: int, drop: float = 0.3) -> nn.Module:
-    """Same heads as the notebook's build_eval_model (state-dict keys must match)."""
     if arch == "convnext_tiny":
         m = models.convnext_tiny(weights=None)
         m.classifier[2] = nn.Sequential(
@@ -42,16 +38,26 @@ def _build_model(arch: str, num_classes: int, drop: float = 0.3) -> nn.Module:
 def pretty_label(key: str) -> str:
     if key == "other":
         return "Other / unlisted condition"
+    if key == config.HEALTHY_CLASS_KEY:
+        return "Healthy"
     return key.replace("_", " ").title()
 
 
 class SubClassEnsemble:
     def __init__(self, model_paths=config.SUBCLASS_MODEL_PATHS):
         self.device = config.DEVICE
-        self.classes = list(config.SUBCLASS_CLASSES)
+        self.classes = list(config.SUBCLASS_CLASSES)              # 13 (checkpoint heads)
+        self.final_classes = list(config.SUBCLASS_FINAL_CLASSES)  # kept classes + "other"
+        self.normal_idx = self.final_classes.index(config.HEALTHY_CLASS_KEY)
         self.transform = build_transform(
             config.SUBCLASS_IMG_SIZE, config.IMAGENET_MEAN, config.IMAGENET_STD
         )
+
+        # 13 -> final merge matrix: p_final = p13 @ self.merge
+        self.merge = np.zeros((len(self.classes), len(self.final_classes)), dtype=np.float32)
+        for j, c in enumerate(self.classes):
+            tgt = c if c in self.final_classes else "other"
+            self.merge[j, self.final_classes.index(tgt)] = 1.0
 
         self.models: dict[str, nn.Module] = {}
         for arch, path in model_paths.items():
@@ -74,8 +80,6 @@ class SubClassEnsemble:
             raise RuntimeError("No sub-class models were loaded.")
 
     # ---------------------------------------------------------
-    # Grad-CAM target (model + layer) used by ml/spot_detector.py
-    # ---------------------------------------------------------
     def get_cam_target(self):
         arch = (
             config.SUBCLASS_CAM_ARCH
@@ -86,52 +90,55 @@ class SubClassEnsemble:
         layer = model.layer4[-1] if arch == "resnet50" else model.features[-1]
         return arch, model, layer
 
+    # ---------------------------------------------------------
+    def _decide(self, p: np.ndarray) -> int:
+        """Index of the final class: healthy if p(normal) >= threshold, else best disease."""
+        if p[self.normal_idx] >= config.HEALTHY_THRESHOLD:
+            return self.normal_idx
+        q = p.copy()
+        q[self.normal_idx] = -1.0
+        return int(np.argmax(q))
+
     @torch.no_grad()
-    def predict(self, image_bytes: bytes, exclude_normal: bool = False) -> dict:
-        """
-        exclude_normal=True: ignore the "normal" class and renormalise, i.e.
-        "which DISEASE is it?". Used when the pathogen model has already
-        decided the leaf is diseased (it is the better healthy/diseased judge).
-        """
+    def predict(self, image_bytes: bytes) -> dict:
         image = bytes_to_pil_image(image_bytes)
         x = self.transform(image).unsqueeze(0).to(self.device)
-        normal_idx = self.classes.index("normal")
-
-        def _disease_only(p):
-            if not exclude_normal:
-                return p
-            p = p.copy()
-            p[normal_idx] = 0.0
-            return p / p.sum()
+        if config.SUBCLASS_TTA_FLIP:
+            x = torch.cat([x, torch.flip(x, dims=[3])], dim=0)
 
         per_model = {}
         for arch, model in self.models.items():
-            p = torch.softmax(model(x).float(), dim=1)[0].cpu().numpy()
-            per_model[arch] = _disease_only(p)
+            p13 = torch.softmax(model(x).float(), dim=1).cpu().numpy().mean(axis=0)
+            per_model[arch] = p13 @ self.merge
 
-        probs = np.mean(list(per_model.values()), axis=0)  # soft voting
-        idx = int(np.argmax(probs))
-        key = self.classes[idx]
-        group = config.SUBCLASS_TO_GROUP[key]
+        probs = np.mean(list(per_model.values()), axis=0)   # soft vote over final classes
+        idx = self._decide(probs)
+        key = self.final_classes[idx]
+        is_healthy = idx == self.normal_idx
+        group = config.SUBCLASS_TO_GROUP.get(key, "other")
 
+        disease_idx = [i for i in range(len(self.final_classes)) if i != self.normal_idx]
+        disease_idx.sort(key=lambda i: probs[i], reverse=True)
         top3 = [
             {
-                "key": self.classes[i],
-                "label": pretty_label(self.classes[i]),
+                "key": self.final_classes[i],
+                "label": pretty_label(self.final_classes[i]),
                 "confidence": float(probs[i]),
             }
-            for i in np.argsort(probs)[::-1][:3]
+            for i in disease_idx[:3]
         ]
 
         return {
-            "index": idx,
+            "is_healthy": is_healthy,
             "key": key,
             "label": pretty_label(key),
             "confidence": float(probs[idx]),
+            "normal_prob": float(probs[self.normal_idx]),
             "group": group,
             "group_label": config.GROUP_LABELS[group],
             "top3": top3,
             "model_votes": {
-                arch: self.classes[int(np.argmax(p))] for arch, p in per_model.items()
+                arch: self.final_classes[self._decide(p)] for arch, p in per_model.items()
             },
+            "probs": {c: float(p) for c, p in zip(self.final_classes, probs)},
         }

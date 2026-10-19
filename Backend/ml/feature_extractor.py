@@ -1,19 +1,6 @@
 """
-Whole-image vectorization + nearest-neighbor similarity search.
-
-This ports the exact approach already used in
-image-classification-paddy.ipynb (ConvNeXtFeatureExtractor +
-build_reference_gallery + cosine_similarity inside
-run_clean_balanced_diagnostic) into a production module that:
-
-  1. Loads a reference gallery of leaf images ONCE at startup and
-     vectorizes them into L2-normalized 768-d embeddings (cached to
-     disk, so this expensive step doesn't repeat on every request).
-  2. For each uploaded photo, computes its own embedding and returns
-     the top-K most similar gallery images by cosine similarity.
-
-No object detection (YOLO or otherwise) is used anywhere here — this
-is pure whole-image feature-vector comparison, same as the notebook.
+Whole-image vectorization + nearest-neighbor similarity search
+(ConvNeXt-Tiny embeddings + cosine similarity). No object detection.
 """
 
 import csv
@@ -29,11 +16,6 @@ from utils.image_utils import bytes_to_pil_image, build_transform
 
 
 class ConvNeXtFeatureExtractor(nn.Module):
-    """Strips the classification head off a trained ConvNeXt-Tiny model
-    and exposes its pooled 768-d feature vector instead of class logits.
-    Identical structure to ConvNeXtFeatureExtractor in the notebook.
-    """
-
     def __init__(self, base_model: nn.Module):
         super().__init__()
         self.features = base_model.features
@@ -46,17 +28,12 @@ class ConvNeXtFeatureExtractor(nn.Module):
 
 
 class SimilarityEngine:
-    """Vectorizes leaf photos and finds the closest images in a
-    precomputed reference gallery using cosine similarity.
-    """
+    EMBED_DIM = 768  # ConvNeXt-Tiny pooled feature size
 
-    EMBED_DIM = 768  # ConvNeXt-Tiny's pooled feature size
-
-    def __init__(self, disease_classifier):
-        # Reuse the already-loaded ConvNeXt weights from DiseaseClassifier
-        # instead of loading the model a second time.
+    def __init__(self, convnext_model: nn.Module):
+        # convnext_model: the already-loaded ft_convnext_tiny model
         self.device = config.DEVICE
-        self.extractor = ConvNeXtFeatureExtractor(disease_classifier.model).to(self.device)
+        self.extractor = ConvNeXtFeatureExtractor(convnext_model).to(self.device)
         self.extractor.eval()
         self.transform = build_transform(
             config.SIMILARITY_IMG_SIZE, config.IMAGENET_MEAN, config.IMAGENET_STD
@@ -67,8 +44,6 @@ class SimilarityEngine:
         self.gallery_embeddings: np.ndarray = np.zeros((0, self.EMBED_DIM), dtype=np.float32)
 
         self._load_or_build_gallery()
-
-    # ---------- gallery ----------
 
     def _load_or_build_gallery(self):
         cache_path = Path(config.SIMILARITY_CACHE_PATH)
@@ -82,8 +57,6 @@ class SimilarityEngine:
             return
 
         if not manifest_path.exists():
-            # No gallery configured yet — similarity search will just
-            # return an empty list until one is added.
             return
 
         paths, labels = [], []
@@ -120,13 +93,8 @@ class SimilarityEngine:
                 vectors.append(np.zeros(self.EMBED_DIM, dtype=np.float32))
         return np.array(vectors, dtype=np.float32)
 
-    # ---------- query ----------
-
     @torch.no_grad()
     def find_similar(self, image_bytes: bytes, top_k: int | None = None) -> list[dict]:
-        """Returns the top_k most visually similar gallery images to the
-        given photo, each as {"image_path", "label", "similarity"}.
-        """
         if len(self.gallery_paths) == 0:
             return []
 
@@ -138,11 +106,8 @@ class SimilarityEngine:
 
         query = self.extractor(tensor)
         query = query / query.norm(p=2, dim=1, keepdim=True)
-        query = query.cpu().numpy()  # shape (1, D)
+        query = query.cpu().numpy()
 
-        # Both query and gallery are L2-normalized, so a plain dot
-        # product is the cosine similarity (matches sklearn's
-        # cosine_similarity(query_feat, ref_embeddings) in the notebook).
         similarities = (query @ self.gallery_embeddings.T)[0]
         top_indices = np.argsort(similarities)[::-1][:top_k]
 

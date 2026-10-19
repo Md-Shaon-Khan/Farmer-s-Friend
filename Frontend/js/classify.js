@@ -1,27 +1,23 @@
-// Talks to the FastAPI backend's /api/predict endpoint.
+// Talks to the FastAPI backend's /api/predict and /api/feedback endpoints.
 //
-// Expected JSON response shape (matches the updated schemas/predict.py):
+// Response shape of /api/predict:
 // {
+//   "prediction_id": "a1b2c3d4e5f6",     // used to attach feedback
 //   "is_paddy": true,
 //   "paddy_confidence": 0.97,
-//   "disease": "leaf_blast",        // machine key, or null/"normal" when healthy
-//   "disease_label": "Leaf blast",  // human-readable label, or null when healthy/not paddy
-//   "disease_confidence": 0.89,     // 0-1, or null when healthy/not paddy
-//   "sub_class": { "key": "tungro", "label": "Tungro", "confidence": 0.91, "group": "viral",
-//                  "group_label": "Viral infection", "top3": [...], "model_votes": {...} },
-//   "final": { "source": "both" | "sub" | "main", "label": "Tungro", "group": "viral", ... },
-//   "consistency": { "status": "match" | "mismatch" | "other", "winner": "both"|"sub"|"main", "main_group": "viral",
-//                    "sub_group": "viral", "message": "..." },
-//   "localization": { "heatmap_overlay_base64", "lesion_mask_base64", "annotated_image_base64",
-//                     "spots": [...], "total_damage_pct": 12.3, "tuned_params": {...} },
-//   "similar_images": [             // top-5 nearest images by feature-vector similarity
-//     { "image_url": "/static/reference/blast_014.jpg", "label": "blast", "similarity": 0.93 },
-//     ...
-//   ]
+//   "disease": "blast" | null,           // null when healthy
+//   "disease_label": "Blast" | null,
+//   "disease_confidence": 0.89,          // healthy prob when healthy, disease prob otherwise
+//   "sub_class": { key, label, confidence, group, group_label, top3, model_votes } | null,
+//   "final": { source: "sub", key, label, group, group_label, confidence } | null,   // null = healthy
+//   "consistency": null,
+//   "localization": { heatmap_overlay_base64, lesion_mask_base64, annotated_image_base64, spots, total_damage_pct, tuned_params } | null,
+//   "similar_images": [ { image_url, label, similarity }, ... ]
 // }
 
 const API_BASE_URL = 'http://127.0.0.1:8000';
 const PREDICT_ENDPOINT = `${API_BASE_URL}/api/predict`;
+const FEEDBACK_ENDPOINT = `${API_BASE_URL}/api/feedback`;
 
 const dropzone = document.getElementById('dropzone');
 const dropzoneContent = document.getElementById('dropzoneContent');
@@ -146,42 +142,45 @@ analyzeBtn.addEventListener('click', async () => {
 
 // ---------- result rendering ----------
 
-const GROUP_LABELS = {
-  bacterial: 'Bacterial infection',
-  fungal: 'Fungal infection',
-  viral: 'Viral infection',
-  normal: 'Healthy',
-  other: 'Other / unlisted condition',
-};
-
 function renderResult(data) {
+  renderResultInner(data);
+  if (data.prediction_id) attachFeedbackBox(data.prediction_id);
+}
+
+function renderResultInner(data) {
   resultPlaceholder.hidden = true;
   resultCard.hidden = false;
 
-  if (!data.is_paddy) {
+  // Not paddy: warn, but (testing mode) still show what the models predict.
+  const notPaddy = !data.is_paddy;
+  const paddyBadge = notPaddy
+    ? '<span class="result-status is-not-paddy">Not paddy</span>'
+    : '<span class="result-status is-paddy">Paddy confirmed</span>';
+  const notPaddyNote = notPaddy
+    ? `<p class="result-note">This doesn't look like a paddy leaf (paddy confidence ${Math.round((data.paddy_confidence || 0) * 100)}%). The prediction below is shown for testing only and may be unreliable.</p>`
+    : '';
+
+  // Backend skipped prediction for a non-paddy photo.
+  if (notPaddy && !data.final && data.disease_confidence == null) {
     resultCard.innerHTML = `
-      <span class="result-status is-not-paddy">Not paddy</span>
+      ${paddyBadge}
       <h3>This doesn't look like a paddy leaf</h3>
       <p class="result-note">Try a closer photo of a single leaf, filling most of the frame.</p>
       ${confidenceRow('Confidence', data.paddy_confidence)}
     `;
-    // No disease gallery to compare against for non-paddy photos.
     return;
   }
 
   const sub = data.sub_class || null;
-  const check = data.consistency || null;
   const final = data.final || null;
-  const mainGroup = check ? check.main_group : data.disease;
-  const mainLabel = data.disease_label || GROUP_LABELS[mainGroup] || 'Unknown';
 
-  const isHealthy = !data.disease || data.disease === 'normal' || data.disease === 'healthy';
-
-  if (isHealthy) {
+  // final === null  ->  the ensemble says the leaf is healthy
+  if (!final) {
     resultCard.innerHTML = `
-      <span class="result-status is-paddy">Paddy confirmed</span>
+      ${paddyBadge}
       <span class="result-status is-healthy">Looks healthy</span>
       <h3>No disease detected</h3>
+      ${notPaddyNote}
       <p class="result-note">The leaf looks healthy based on this photo.</p>
       ${confidenceRow('Paddy', data.paddy_confidence)}
       ${confidenceRow('Healthy', data.disease_confidence)}
@@ -190,44 +189,79 @@ function renderResult(data) {
     return;
   }
 
-  // ---- Diseased. If the two models disagree, the more confident one is shown
-  //      (data.final) together with the mismatch message. ----
-  const disagree = !!(check && check.status !== 'match');
-  const headline = final ? final.label : (sub ? sub.label : mainLabel);
-  const showGroupLine = final && final.source !== 'main' && final.group_label !== final.label
-    && final.group !== 'other';
+  // ---- Diseased ----
+  const isUnlisted = final.group === 'other';
+  const showGroupLine = !isUnlisted && final.group_label !== final.label;
   const groupLine = showGroupLine
     ? `<p class="result-group">${escapeHtml(final.group_label)}</p>` : '';
-  const isUnlisted = !!(final && final.group === 'other');
 
   const badges = [
-    '<span class="result-status is-paddy">Paddy confirmed</span>',
+    paddyBadge,
     isUnlisted
       ? '<span class="result-status is-mismatch">Unlisted condition</span>'
       : '<span class="result-status is-diseased">Disease found</span>',
-    disagree ? '<span class="result-status is-mismatch">Models disagree</span>' : '',
   ].join('');
 
-  const note = disagree
-    ? escapeHtml(check.message)
-    : 'This is a model estimate — confirm with an expert before treating your crop.';
-
-  const subRowLabel = sub
-    ? (sub.group === 'other' ? 'Disease: unlisted condition' : `Disease: ${escapeHtml(sub.label)}`)
-    : '';
+  const diseaseRowLabel = isUnlisted
+    ? 'Disease: unlisted condition'
+    : `Disease: ${escapeHtml(final.label)}`;
 
   resultCard.innerHTML = `
     ${badges}
-    <h3>${escapeHtml(headline)}</h3>
+    <h3>${escapeHtml(final.label)}</h3>
     ${groupLine}
-    <p class="result-note">${note}</p>
+    ${notPaddyNote}
+    <p class="result-note">This is a model estimate — confirm with an expert before treating your crop.</p>
     ${confidenceRow('Paddy', data.paddy_confidence)}
-    ${confidenceRow(`Pathogen type: ${escapeHtml(mainLabel)}`, data.disease_confidence)}
-    ${sub ? confidenceRow(subRowLabel, sub.confidence) : ''}
-    ${final && final.source !== 'main' ? topCandidates(sub) : ''}
+    ${confidenceRow(diseaseRowLabel, final.confidence)}
+    ${topCandidates(sub)}
     ${localizationSection(data.localization)}
     ${similarSection(data.similar_images)}
   `;
+}
+
+// ---------- feedback box (actual disease -> saved to prediction_log.jsonl) ----------
+
+function attachFeedbackBox(predictionId) {
+  resultCard.insertAdjacentHTML('beforeend', `
+    <div class="feedback-box">
+      <h4>What disease is it really?</h4>
+      <div class="feedback-row">
+        <input type="text" id="actualInput" placeholder="e.g. blast, brown spot, healthy" autocomplete="off">
+        <button type="button" class="btn out sm" id="saveFeedbackBtn">Save</button>
+      </div>
+      <p class="feedback-status" id="feedbackStatus"></p>
+    </div>
+  `);
+
+  const input = document.getElementById('actualInput');
+  const btn = document.getElementById('saveFeedbackBtn');
+  const status = document.getElementById('feedbackStatus');
+
+  async function save() {
+    const text = input.value.trim();
+    if (!text) {
+      status.textContent = 'Please type the actual disease first.';
+      return;
+    }
+    btn.disabled = true;
+    try {
+      const res = await fetch(FEEDBACK_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prediction_id: predictionId, actual_text: text }),
+      });
+      if (!res.ok) throw new Error(res.status);
+      status.textContent = 'Saved ✓';
+    } catch (err) {
+      console.error(err);
+      status.textContent = "Couldn't save. Is the backend running?";
+    }
+    btn.disabled = false;
+  }
+
+  btn.addEventListener('click', save);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') save(); });
 }
 
 function topCandidates(sub) {
@@ -256,7 +290,6 @@ function localizationSection(localization) {
     ? `<figure><img src="data:image/png;base64,${b64}" alt="${alt}"><figcaption>${caption}</figcaption></figure>`
     : '';
 
-  // Grad-CAM heatmap -> grid-tuned lesion mask -> OpenCV boxes, side by side.
   const spotRows = spots.slice(0, 6).map((s) => `
     <tr>
       <td>#${s.spot_id}</td>
@@ -340,3 +373,55 @@ function hideResult() {
   resultCard.hidden = true;
   resultPlaceholder.hidden = false;
 }
+
+// ---------- paste an image from the clipboard (Ctrl+V / Cmd+V) ----------
+
+const AUTO_ANALYZE_ON_PASTE = false; // set to true to analyze immediately after pasting
+
+async function imageFileFromClipboard(clipboardData) {
+  for (const item of clipboardData.items || []) {
+    if (item.kind === 'file' && item.type.startsWith('image/')) {
+      const file = item.getAsFile();
+      if (file) return file;
+    }
+  }
+
+  const html = clipboardData.getData('text/html');
+  let url = '';
+  if (html) {
+    const img = new DOMParser().parseFromString(html, 'text/html').querySelector('img');
+    if (img) url = img.getAttribute('src') || '';
+  }
+  if (!url) url = (clipboardData.getData('text/plain') || '').trim();
+
+  if (/^(data:image\/|https?:\/\/)/i.test(url)) {
+    const res = await fetch(url);                 // http(s) only works if the site allows CORS
+    const blob = await res.blob();
+    if (blob.type.startsWith('image/')) {
+      const ext = blob.type.split('/')[1].split('+')[0] || 'png';
+      return new File([blob], `pasted-image.${ext}`, { type: blob.type });
+    }
+  }
+  return null;
+}
+
+document.addEventListener('paste', async (e) => {
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+  if (!e.clipboardData) return;
+
+  try {
+    const file = await imageFileFromClipboard(e.clipboardData);
+    if (!file) {
+      showError('No image found in the clipboard. Copy an image first, then press Ctrl+V.');
+      return;
+    }
+    e.preventDefault();
+    resetForm();
+    handleFileSelected(file);
+    if (AUTO_ANALYZE_ON_PASTE) analyzeBtn.click();
+  } catch (err) {
+    console.error(err);
+    showError("Couldn't read that image from the clipboard. Right-click it and choose 'Copy image', or save it and upload.");
+  }
+});

@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 import config
-from routers import predict
+from routers import predict, feedback
 
 app = FastAPI(title="Paddy Check API")
 
@@ -17,6 +17,7 @@ app.add_middleware(
 )
 
 app.include_router(predict.router, prefix="/api")
+app.include_router(feedback.router, prefix="/api")
 
 
 @app.get("/api/health")
