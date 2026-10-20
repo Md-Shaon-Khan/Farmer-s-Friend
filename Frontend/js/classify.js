@@ -1,19 +1,4 @@
 // Talks to the FastAPI backend's /api/predict and /api/feedback endpoints.
-//
-// Response shape of /api/predict:
-// {
-//   "prediction_id": "a1b2c3d4e5f6",     // used to attach feedback
-//   "is_paddy": true,
-//   "paddy_confidence": 0.97,
-//   "disease": "blast" | null,           // null when healthy
-//   "disease_label": "Blast" | null,
-//   "disease_confidence": 0.89,          // healthy prob when healthy, disease prob otherwise
-//   "sub_class": { key, label, confidence, group, group_label, top3, model_votes } | null,
-//   "final": { source: "sub", key, label, group, group_label, confidence } | null,   // null = healthy
-//   "consistency": null,
-//   "localization": { heatmap_overlay_base64, lesion_mask_base64, annotated_image_base64, spots, total_damage_pct, tuned_params } | null,
-//   "similar_images": [ { image_url, label, similarity }, ... ]
-// }
 
 const API_BASE_URL = 'http://127.0.0.1:8000';
 const PREDICT_ENDPOINT = `${API_BASE_URL}/api/predict`;
@@ -151,7 +136,7 @@ function renderResultInner(data) {
   resultPlaceholder.hidden = true;
   resultCard.hidden = false;
 
-  // Not paddy: warn, but (testing mode) still show what the models predict.
+  // Not paddy badge & notice
   const notPaddy = !data.is_paddy;
   const paddyBadge = notPaddy
     ? '<span class="result-status is-not-paddy">Not paddy</span>'
@@ -160,7 +145,7 @@ function renderResultInner(data) {
     ? `<p class="result-note">This doesn't look like a paddy leaf (paddy confidence ${Math.round((data.paddy_confidence || 0) * 100)}%). The prediction below is shown for testing only and may be unreliable.</p>`
     : '';
 
-  // Backend skipped prediction for a non-paddy photo.
+  // Backend skipped prediction for non-paddy
   if (notPaddy && !data.final && data.disease_confidence == null) {
     resultCard.innerHTML = `
       ${paddyBadge}
@@ -174,7 +159,7 @@ function renderResultInner(data) {
   const sub = data.sub_class || null;
   const final = data.final || null;
 
-  // final === null  ->  the ensemble says the leaf is healthy
+  // Healthy Leaf
   if (!final) {
     resultCard.innerHTML = `
       ${paddyBadge}
@@ -189,8 +174,8 @@ function renderResultInner(data) {
     return;
   }
 
-  // ---- Diseased ----
-  const isUnlisted = final.group === 'other';
+  // Diseased or Unlisted
+  const isUnlisted = final.group === 'other' || data.disease === 'unsupported_condition';
   const showGroupLine = !isUnlisted && final.group_label !== final.label;
   const groupLine = showGroupLine
     ? `<p class="result-group">${escapeHtml(final.group_label)}</p>` : '';
@@ -202,8 +187,13 @@ function renderResultInner(data) {
       : '<span class="result-status is-diseased">Disease found</span>',
   ].join('');
 
+  // Show user guidance message from backend if present
+  const userAlertBox = (isUnlisted && data.message)
+    ? `<div class="result-alert-box">${escapeHtml(data.message)}</div>`
+    : '';
+
   const diseaseRowLabel = isUnlisted
-    ? 'Disease: unlisted condition'
+    ? 'Condition: Unlisted'
     : `Disease: ${escapeHtml(final.label)}`;
 
   resultCard.innerHTML = `
@@ -211,6 +201,7 @@ function renderResultInner(data) {
     <h3>${escapeHtml(final.label)}</h3>
     ${groupLine}
     ${notPaddyNote}
+    ${userAlertBox}
     <p class="result-note">This is a model estimate — confirm with an expert before treating your crop.</p>
     ${confidenceRow('Paddy', data.paddy_confidence)}
     ${confidenceRow(diseaseRowLabel, final.confidence)}
@@ -220,7 +211,7 @@ function renderResultInner(data) {
   `;
 }
 
-// ---------- feedback box (actual disease -> saved to prediction_log.jsonl) ----------
+// ---------- feedback box ----------
 
 function attachFeedbackBox(predictionId) {
   resultCard.insertAdjacentHTML('beforeend', `
@@ -374,9 +365,9 @@ function hideResult() {
   resultPlaceholder.hidden = false;
 }
 
-// ---------- paste an image from the clipboard (Ctrl+V / Cmd+V) ----------
+// ---------- paste image (Ctrl+V / Cmd+V) ----------
 
-const AUTO_ANALYZE_ON_PASTE = false; // set to true to analyze immediately after pasting
+const AUTO_ANALYZE_ON_PASTE = false;
 
 async function imageFileFromClipboard(clipboardData) {
   for (const item of clipboardData.items || []) {
@@ -395,7 +386,7 @@ async function imageFileFromClipboard(clipboardData) {
   if (!url) url = (clipboardData.getData('text/plain') || '').trim();
 
   if (/^(data:image\/|https?:\/\/)/i.test(url)) {
-    const res = await fetch(url);                 // http(s) only works if the site allows CORS
+    const res = await fetch(url);
     const blob = await res.blob();
     if (blob.type.startsWith('image/')) {
       const ext = blob.type.split('/')[1].split('+')[0] || 'png';

@@ -43,9 +43,9 @@ REFERENCE_IMAGE_URL_PREFIX = "/static/reference"
 # =====================================================================
 SUBCLASS_DIR = BASE_DIR / "models" / "disease_classify"
 SUBCLASS_MODEL_PATHS = {
-    "convnext_tiny": SUBCLASS_DIR / "ft_convnext_tiny.pt",
-    "efficientnet_b3": SUBCLASS_DIR / "ft_efficientnet_b3.pt",
-    "resnet50": SUBCLASS_DIR / "ft_resnet50.pt",
+    "convnext_tiny": SUBCLASS_DIR / "ConvNeXt-Tiny_adapted.pth",
+    "efficientnet_b3": SUBCLASS_DIR / "EfficientNet-B3_adapted.pth",
+    "resnet50": SUBCLASS_DIR / "ResNet-50_adapted.pth",
 }
 
 # The 13 heads inside the checkpoints. Order MUST match the checkpoints.
@@ -56,49 +56,48 @@ SUBCLASS_CLASSES = [
 ]
 SUBCLASS_IMG_SIZE = 384
 
-# Classes we KEEP as separate outputs ("normal" = healthy). Everything else
-# in the checkpoint is summed into "other" at inference (no retraining).
-# NOTE: "leaf_smut" is not a head in the current checkpoints, so it is
-# skipped automatically (see SUBCLASS_FINAL_CLASSES below).
+# Classes to KEEP and SHOW to the user (8 targeted classes, panicle blight excluded)
 SUBCLASS_KEEP_CLASSES = [
-    "bacterial_leaf_blight", "brown_spot", "narrow_brown_spot", "blast",
-    "tungro", "sheath_blight", "leaf_smut", "normal",
+    "bacterial_leaf_blight",
+    "bacterial_leaf_streak",
+    "blast",
+    "brown_spot",
+    "sheath_blight",
+    "tungro",
+    "false_smut",
+    "normal",
 ]
-SUBCLASS_FINAL_CLASSES = (
-    [c for c in SUBCLASS_KEEP_CLASSES if c in SUBCLASS_CLASSES] + ["other"]
-)
-SUBCLASS_MERGE_INTO_OTHER = [
-    c for c in SUBCLASS_CLASSES if c not in SUBCLASS_FINAL_CLASSES
-]
+SUBCLASS_FINAL_CLASSES = list(SUBCLASS_KEEP_CLASSES)
+SUBCLASS_MERGE_INTO_OTHER = []
 
 SUBCLASS_TO_GROUP = {
     "bacterial_leaf_blight": "bacterial",
+    "bacterial_leaf_streak": "bacterial",
     "blast": "fungal",
     "brown_spot": "fungal",
-    "narrow_brown_spot": "fungal",
     "sheath_blight": "fungal",
-    "leaf_smut": "fungal",
     "tungro": "viral",
+    "false_smut": "fungal",
     "normal": "normal",
-    "other": "other",
 }
 GROUP_LABELS = {
     "bacterial": "Bacterial infection",
     "fungal": "Fungal infection",
     "viral": "Viral infection",
     "normal": "Healthy",
-    "other": "Other / unlisted condition",
 }
 
-# Grad-CAM source model (ResNet-50 layer4[-1]).
+# Grad-CAM source model
 SUBCLASS_CAM_ARCH = "resnet50"
 
-# ---------- healthy vs diseased decision ----------
-# The leaf is called HEALTHY when the ensemble's averaged "normal" probability
-# is >= this value (instead of plain argmax, which over-called disease).
-# Raise it if healthy leaves are still called diseased; lower it if real
-# diseases are being called healthy. Tune on your validation set.
-HEALTHY_THRESHOLD = 0.30
+# ---------- Thresholds & Messages ----------
+HEALTHY_THRESHOLD = 0.28
+DISEASE_MIN_CONFIDENCE = 0.50
+
+OUT_OF_SCOPE_MESSAGE = (
+    "This disease is not in our model's supported list. "
+    "Please provide a clearer, closer image of the affected leaf area for a more accurate diagnosis."
+)
 
 # Average predictions of the image and its horizontal flip (more stable).
 SUBCLASS_TTA_FLIP = True

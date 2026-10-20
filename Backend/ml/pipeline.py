@@ -1,11 +1,11 @@
 """
 Pipeline:
-  1. Is this paddy? (not-paddy still predicts while config.PREDICT_EVEN_IF_NOT_PADDY)
-  2. The 3-model ensemble decides healthy vs which disease
-     (healthy if p(normal) >= config.HEALTHY_THRESHOLD).
-  3. Grad-CAM + lesion localization for diseased results.
-  4. Most visually similar reference images.
-  5. Every prediction is appended to data/prediction_log.jsonl.
+  1. Is this paddy? (MobileNetV3-Small)
+  2. 3-model ensemble decides healthy vs which disease (9 classes).
+  3. Checks out-of-scope / low-confidence disease and sets appropriate user alert.
+  4. Grad-CAM + lesion localization for valid supported diseases.
+  5. Most visually similar reference images.
+  6. Every prediction is appended to data/prediction_log.jsonl.
 """
 
 from pathlib import Path
@@ -49,6 +49,7 @@ def _run_pipeline_core(image_bytes: bytes) -> dict:
             "disease": None, "disease_label": None, "disease_confidence": None,
             "sub_class": None, "consistency": None, "final": None,
             "similar_images": [], "localization": None,
+            "message": "The uploaded image does not appear to be a paddy plant. Please upload a clear photo of a rice leaf."
         }
 
     similar_images = _to_response_images(_similarity_engine.find_similar(image_bytes))
@@ -58,10 +59,11 @@ def _run_pipeline_core(image_bytes: bytes) -> dict:
     if sub["is_healthy"]:
         return {
             "is_paddy": is_paddy, "paddy_confidence": paddy_confidence,
-            "disease": None, "disease_label": None,
-            "disease_confidence": sub["normal_prob"],   # shown as "Healthy" %
+            "disease": None, "disease_label": "Healthy Leaf",
+            "disease_confidence": sub["normal_prob"],
             "sub_class": None, "consistency": None, "final": None,
             "similar_images": similar_images, "localization": None,
+            "message": "Leaf appears healthy."
         }
 
     # ---- diseased ----
@@ -71,19 +73,30 @@ def _run_pipeline_core(image_bytes: bytes) -> dict:
         "confidence": sub["confidence"],
     }
 
+    # Check if image leaned toward unsupported heads (e.g. hispa, downy mildew) or has low confidence
+    is_out_of_scope = sub.get("is_out_of_scope", False)
+    is_low_confidence = sub["confidence"] < config.DISEASE_MIN_CONFIDENCE
+
+    user_message = "Disease diagnosed successfully."
+    if is_out_of_scope or is_low_confidence:
+        user_message = config.OUT_OF_SCOPE_MESSAGE
+
     localization = None
-    if sub["group"] != "other":
+    try:
         _, cam_model, cam_layer = _subclass_ensemble.get_cam_target()
+        pred_idx = _subclass_ensemble.classes.index(sub["key"])
         localization = localize_disease(
             cam_model=cam_model,
             target_layer=cam_layer,
             image_pil=bytes_to_pil_image(image_bytes),
-            pred_idx=_subclass_ensemble.classes.index(sub["key"]),
+            pred_idx=pred_idx,
             transform=_subclass_ensemble.transform,
             device=config.DEVICE,
             mean=config.IMAGENET_MEAN,
             std=config.IMAGENET_STD,
         )
+    except Exception as e:
+        print(f"[Grad-CAM] failed: {e}")
 
     return {
         "is_paddy": is_paddy, "paddy_confidence": paddy_confidence,
@@ -94,6 +107,7 @@ def _run_pipeline_core(image_bytes: bytes) -> dict:
         "final": final,
         "similar_images": similar_images,
         "localization": localization,
+        "message": user_message
     }
 
 
@@ -101,7 +115,7 @@ def run_pipeline(image_bytes: bytes) -> dict:
     result = _run_pipeline_core(image_bytes)
     try:
         result["prediction_id"] = log_prediction(image_bytes, result)
-    except Exception as e:           # logging must never break prediction
+    except Exception as e:
         print(f"[prediction_log] failed: {e}")
         result["prediction_id"] = None
     return result

@@ -99,3 +99,15 @@
 }
 .feedback-row input:focus { outline: none; border-color: var(--gr); }
 .feedback-status { margin: 8px 0 0; font-size: .85rem; color: var(--mut); min-height: 1.2em; }
+
+/* User warning notice for unlisted conditions or low confidence */
+.result-alert-box {
+  background: #fff4d6;
+  border-left: 4px solid #f0d58a;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 18px;
+  font-size: 0.92rem;
+  color: #7a5200;
+  line-height: 1.45;
+}
