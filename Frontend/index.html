@@ -1,56 +1,20 @@
+<!-- Frontend/index.html -->
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Paddy Check – Rice leaf disease detection</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=Hind+Siliguri:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/site.css?v=2"></head><body>
-<div class="wrap"><header class="nav"><a class="brand" href="index.html"><svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><path d="M16 29V14M16 14C16 7 11 4 5 4c0 7 4 10 11 10zM16 18c0-6 4-9 11-9 0 7-4 10-11 10z" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> Paddy Check</a><nav class="links"><a class="on" href="index.html">Home</a><a class="" href="pages/viral.html">Viral</a><a class="" href="pages/bacterial.html">Bacterial</a><a class="" href="pages/fungal.html">Fungal</a><a class="" href="pages/normal.html">Normal</a></nav><a class="btn sm" href="pages/classify.html">Classify a leaf</a></header>
-<section class="hero"><div><div class="label">Rice leaf disease detection</div>
-<h1>Not sure what is wrong with your rice leaf?</h1>
-<p>Blast, brown spot and blight look alike when you are standing in the field. Send one photo and Paddy Check tells you what it thinks it is, and where on the leaf.</p>
-<div class="cta-row"><a class="btn" href="pages/classify.html">Classify a leaf</a><a class="btn out" href="#groups">Read about the diseases</a></div></div>
-<div class="maphero" aria-label="Bangladesh paddy map"><div class="map-stage" id="stage"><canvas id="map" aria-label="Map of Bangladesh drawn with paddy grains and plants, showing a farmer photo in each division one after another"></canvas></div><nav class="chips" id="chips" aria-label="Divisions"></nav></div></section>
-
-<section class="sec two" id="groups"><div style="display:flex;flex-direction:column"><div class="label">Disease guide</div>
-<h2>Find out which kind of problem it is</h2><p class="lead">Every disease falls into one of a few groups. Pick one to see the signs and what farmers usually do.</p>
-<div class="pills" id="tabs"><button class="pill on" data-k="viral" type="button">Viral</button><button class="pill" data-k="bacterial" type="button">Bacterial</button><button class="pill" data-k="fungal" type="button">Fungal</button><button class="pill" data-k="normal" type="button">Normal</button></div></div>
-<div class="flow"><div class="top"><h3>Disease group</h3><span class="tagb" id="tTag"></span></div><p id="tTxt"></p><ul id="tList"></ul><div class="go"><a class="btn" id="tLink" href="#">Open this page</a></div></div></section>
-
-<section class="sec"><div class="cards4">
-<div class="fc"><span class="ic">1</span><div><h3>Names the disease</h3><p>A trained model picks from the common paddy leaf diseases.</p></div></div>
-<div class="fc"><span class="ic">2</span><div><h3>Shows where</h3><p>A heatmap and boxes mark the part of the leaf it is looking at.</p></div></div>
-<div class="fc ph" style="background-image:url(assets/images/paddy.jpg)"><span class="ic">3</span><div><h3>Real cases</h3><p>See similar leaves from our reference gallery and compare with yours.</p></div></div>
-<div class="fc"><span class="ic">4</span><div><h3>Made for a phone</h3><p>One photo is enough. No account, nothing to install.</p></div></div>
-</div></section>
-
-<section class="sec two" id="how"><div class="photo"><img src="assets/images/paddy.jpg" alt="Paddy field" onerror="this.remove()"></div>
-<div class="caps"><div class="label">How to use it</div>
-<div class="cap"><span class="n">01</span><div><h3>Take a photo</h3><p>One leaf, in daylight, close up.</p></div></div>
-<div class="cap"><span class="n">02</span><div><h3>Upload it</h3><p>Add the photo on the Classify page.</p></div></div>
-<div class="cap"><span class="n">03</span><div><h3>Read the result</h3><p>Disease name, affected spots and similar leaves.</p></div></div></div></section>
-
-<section class="sec about"><div class="label">About</div><div>
-<h2>Most farmers can't call an expert every time they see a spot.</h2>
-<p>Sometimes the officer is far away, or busy, and the crop does not wait. We wanted something that works from a phone photo and gives a first idea quickly. It is not a doctor, just a second pair of eyes to help you decide what to do next.</p>
-<a class="btn out" href="pages/classify.html">Try it now</a></div></section>
-
-<section class="sec"><div class="label">Test results</div><h2>How well does it work?</h2><p class="lead">These two charts come from our own testing. Tap one to open it bigger.</p>
-<div class="evg">
-<figure class="cc"><button type="button" class="co" data-full="assets/images/boxplot2.png" data-alt="Boxplot of model results by disease"><span class="ci"><img src="assets/images/boxplot2.png" alt="Boxplot of model results by disease" loading="lazy" onerror="this.remove()"></span></button><figcaption><h3>Boxplot</h3><p>One box per disease. A short box that sits high means the model scored well on most photos. A tall box means it was less steady.</p></figcaption></figure>
-<figure class="cc"><button type="button" class="co" data-full="assets/images/heatmap2.png" data-alt="Heatmap of model results"><span class="ci"><img src="assets/images/heatmap2.png" alt="Heatmap of model results" loading="lazy" onerror="this.remove()"></span></button><figcaption><h3>Heatmap</h3><p>Rows are the real disease, columns are what the model guessed. Dark squares on the diagonal are right answers. Dark squares elsewhere show what it mixes up.</p></figcaption></figure>
-</div></section>
-<section class="band"><h2>Got a leaf that looks odd?</h2><p>One clear photo is enough to start.</p><a class="btn" href="pages/classify.html">Classify a leaf</a></section>
-<dialog class="lightbox" id="lightbox" aria-label="Enlarged chart"><button type="button" class="lb-close" aria-label="Close">&times;</button><img id="lbImg" alt=""></dialog>
-<footer class="foot"><div class="row"><a class="brand" href="index.html"><svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><path d="M16 29V14M16 14C16 7 11 4 5 4c0 7 4 10 11 10zM16 18c0-6 4-9 11-9 0 7-4 10-11 10z" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> Paddy Check</a><nav><a href="pages/viral.html">Viral</a><a href="pages/bacterial.html">Bacterial</a><a href="pages/fungal.html">Fungal</a><a href="pages/normal.html">Normal</a><a href="pages/classify.html">Classify</a></nav></div>
-<p class="note">This is only a guide. Please show the leaf to a local agriculture officer before you spray anything.</p></footer></div>
-<script src="js/map.js?v=2"></script>
-<script>
-var T={"viral": {"n": "Viral diseases", "s": "Carried by insects. No cure once a plant is infected, so you stop the insects and pull out sick plants.", "e": ["Rice tungro", "Grassy stunt"]}, "bacterial": {"n": "Bacterial diseases", "s": "Enters through small wounds and spreads with water, more so after storms and flooding.", "e": ["Bacterial leaf blight", "Bacterial leaf streak"]}, "fungal": {"n": "Fungal diseases", "s": "The biggest group. Spots with a clear shape and colour, worse when the weather stays humid.", "e": ["Leaf blast", "Brown spot", "Sheath blight"]}, "normal": {"n": "Normal leaf", "s": "Green, clean and even. Learn what healthy looks like so you can spot what is not.", "e": ["Healthy leaf", "Yellow but not diseased"]}}; 
-(function(){var tg=document.getElementById('tTag'),tx=document.getElementById('tTxt'),ls=document.getElementById('tList'),lk=document.getElementById('tLink');
-function show(k){var t=T[k];tg.textContent=t.n.split(' ')[0];tx.textContent=t.s;ls.innerHTML='';t.e.forEach(function(x){var li=document.createElement('li');li.textContent=x;ls.appendChild(li);});lk.href='pages/'+k+'.html';
-document.querySelectorAll('#tabs .pill').forEach(function(b){b.classList.toggle('on',b.dataset.k===k);});}
-document.querySelectorAll('#tabs .pill').forEach(function(b){b.addEventListener('click',function(){show(b.dataset.k);});});show('viral');
-var d=document.getElementById('lightbox'),i=document.getElementById('lbImg');
-document.querySelectorAll('.co').forEach(function(b){b.addEventListener('click',function(){i.src=b.dataset.full;i.alt=b.dataset.alt||'';d.showModal();});});
-d.querySelector('.lb-close').addEventListener('click',function(){d.close();});d.addEventListener('click',function(e){if(e.target===d)d.close();});})();
-</script></body></html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Paddy Check – Rice leaf disease detection</title>
+    <meta name="theme-color" content="#22b82c" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Hind+Siliguri:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
