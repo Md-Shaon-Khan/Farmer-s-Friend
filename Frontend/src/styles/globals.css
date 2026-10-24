@@ -1,19 +1,23 @@
 /* Frontend/src/styles/globals.css */
 :root {
-  --ink: #0b1510;
-  --mut: #5d6b63;
-  --bg: #fbfdfb;
-  --card: #f2f6f1;
-  --line: #e2e9e1;
-  --gr: #22b82c;
-  --gr-d: #138a1e;
-  --grl: #e1f3e0;
-  --lime: #c8f169;
-  --deep: #0c2416;
+  /* Bangladesh theme: flag green + flag red */
+  --green: #00520A;
+  --red: #960016;
+
+  --ink: #0A1F0D;
+  --mut: #55655a;
+  --bg: #FBFDFB;
+  --card: #F0F5EE;
+  --line: #DDE6DA;
+  --gr: #00520A;
+  --gr-d: #003A07;
+  --grl: #DCEBDD;
+  --lime: #960016;
+  --deep: #00380A;
   --radius-xl: 40px;
   --radius-lg: 28px;
-  --shadow-sm: 0 1px 2px rgba(11, 21, 16, 0.06), 0 6px 16px rgba(11, 21, 16, 0.05);
-  --shadow-md: 0 14px 40px rgba(11, 21, 16, 0.1);
+  --shadow-sm: 0 1px 2px rgba(0, 40, 5, 0.06), 0 6px 16px rgba(0, 40, 5, 0.05);
+  --shadow-md: 0 14px 40px rgba(0, 40, 5, 0.12);
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -22,8 +26,8 @@ html{scroll-behavior:smooth;scroll-padding-top:90px}
 body{font-family:Inter,system-ui,sans-serif;color:var(--ink);background:var(--bg);line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   background:
-    radial-gradient(700px 420px at 90% -5%,#c8f16940,transparent 70%),
-    radial-gradient(620px 420px at -5% 35%,#22b82c1c,transparent 70%)}
+    radial-gradient(700px 420px at 90% -5%,#96001622,transparent 70%),
+    radial-gradient(620px 420px at -5% 35%,#00520A1c,transparent 70%)}
 a{color:inherit;text-decoration:none}
 img{max-width:100%}
 button{font:inherit}
@@ -36,15 +40,15 @@ h2{font-size:clamp(2rem,4vw,3.2rem)}
 h3{font-size:1.45rem;letter-spacing:-.03em}
 
 .wrap{max-width:1180px;margin:0 auto;padding:0 24px}
-.grad{background:linear-gradient(100deg,var(--gr-d),var(--gr) 45%,#8fd13a,var(--gr-d));background-size:200% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 7s linear infinite}
+.grad{background:linear-gradient(100deg,var(--gr-d),var(--gr) 45%,#2E8B3A,var(--gr-d));background-size:200% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 7s linear infinite}
 
 .label{display:flex;align-items:center;gap:10px;color:var(--mut);margin-bottom:22px;font-weight:500}
-.label::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--gr);box-shadow:0 0 0 4px #22b82c26;animation:pulse 2.4s ease-in-out infinite}
+.label::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--gr);box-shadow:0 0 0 4px #00520A26;animation:pulse 2.4s ease-in-out infinite}
 .lead{color:var(--mut);font-size:1.1rem;max-width:44ch;margin-top:20px}
 
 /* buttons */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--ink);background:var(--ink);color:#fff;border-radius:99px;padding:14px 28px;font-weight:500;cursor:pointer;transition:transform .3s var(--ease),background .25s,box-shadow .3s,border-color .25s}
-.btn:hover{background:var(--gr);border-color:var(--gr);transform:translateY(-2px);box-shadow:0 12px 26px #22b82c45}
+.btn:hover{background:var(--gr);border-color:var(--gr);transform:translateY(-2px);box-shadow:0 12px 26px #00520A45}
 .btn:active{transform:translateY(0)}
 .btn.out{background:#fff;color:var(--ink);border-color:var(--line)}
 .btn.out:hover{border-color:var(--ink);background:#fff;box-shadow:var(--shadow-sm)}
@@ -58,7 +62,7 @@ h3{font-size:1.45rem;letter-spacing:-.03em}
 .pills{display:flex;flex-wrap:wrap;gap:12px;margin-top:40px}
 .pill{border:1px solid var(--line);background:var(--card);border-radius:99px;padding:16px 30px;font-size:1.05rem;cursor:pointer;transition:.25s var(--ease)}
 .pill:hover{transform:translateY(-2px);border-color:var(--gr)}
-.pill.on{background:var(--gr);border-color:var(--gr);color:#fff;box-shadow:0 10px 24px #22b82c40}
+.pill.on{background:var(--gr);border-color:var(--gr);color:#fff;box-shadow:0 10px 24px #00520A40}
 
 /* sections */
 .sec{margin-top:120px}
@@ -74,8 +78,13 @@ h3{font-size:1.45rem;letter-spacing:-.03em}
 .lightbox img{display:block;max-width:100%;max-height:88vh;margin:0 auto;border-radius:20px;background:#fff;animation:pop .35s var(--ease)}
 .lb-close{position:absolute;top:-14px;right:-14px;width:40px;height:40px;border:0;border-radius:50%;background:var(--gr);color:#fff;font-size:1.5rem;cursor:pointer}
 
+/* red glow that follows the mouse on every page (created by cursor-glow.js) */
+.cursor-glow{position:fixed;left:0;top:0;width:110px;height:110px;margin:-55px 0 0 -55px;border-radius:50%;pointer-events:none;z-index:200;background:radial-gradient(circle,#96001688 0%,#96001644 38%,#96001600 70%);opacity:0;transition:opacity .35s;will-change:transform}
+.cursor-glow.on{opacity:1}
+@media(pointer:coarse){.cursor-glow{display:none}}
+
 @keyframes shine{to{background-position:200% center}}
-@keyframes pulse{50%{box-shadow:0 0 0 8px #22b82c00}}
+@keyframes pulse{50%{box-shadow:0 0 0 8px #00520A00}}
 @keyframes pop{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
 @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 @keyframes float{50%{transform:translate(18px,-22px) scale(1.06)}}

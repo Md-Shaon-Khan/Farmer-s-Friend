@@ -9,6 +9,8 @@ import './styles/layout.css';
 import './styles/home.css';
 import './styles/disease.css';
 import './styles/classify.css';
+import "./cursor-glow.js";
+import "./hero-words.js";
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
